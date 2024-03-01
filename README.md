@@ -88,12 +88,32 @@ Additionally, the player who reported the squad leader or another player will im
 
    This token is essential for your bot to log in and connect to the Discord servers. Additionally, enabling the correct Privileged Gateway Intents is crucial for your bot to function properly.
 
-2. **API Credentials**: Add a new user to CRCON and generate a new API token
+2. **API Credentials**: Add a new user to CRCON and generate a new API token by following these steps:
+
+   a. **Access Your CRCON Admin Interface**:
+      - Navigate to your CRCON admin interface. For example: `https://rcon.xyz.com/admin`.
+   
+   b. **Create a New User and Set a Password**:
+      - Create a new user and assign a password. Ensure that this user has sufficient rights, including the ability to kick and ban players.
+   
+   c. **Generate an API Key**:
+      - Return to the landing page and click on 'Add' under the Django API Key section.
+      - Select the user you created and copy the generated API Key.
+   
+   d. **Add the API Key to Your `.env` File**:
+      - Add this API Key to your `.env` file in your bot's directory. It should look something like this:
+        ```
+        API_TOKEN=your_api_token
+        ```
+      - Replace `your_api_token` with the API Key you copied.
+   
+   This API key is crucial for your bot to communicate with the CRCON system and perform administrative actions like kicking or banning players.
+
 
 3. **.env File Example**:
    ```
    DISCORD_BOT_TOKEN=your_discord_bot_token
-   API_BASE_URL=https://example.com
+   API_BASE_URL=https://rcon.example.com 
    API_TOKEN=your_api_token
    USERNAME=api_username
    PASSWORD=api_password
