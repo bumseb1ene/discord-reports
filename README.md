@@ -1,14 +1,15 @@
 # Discord Report Bot
 
-This Discord bot is built upon CRCON, a community-developed administration tool for Hell Let Loose. It efficiently scans admin ping messages for reported player names, delivering key information to enable your administrators to make swift and informed decisions. It provides details such as player names, Steam IDs, team kill counts, team kill streaks, and total playtime on the server.
+This Discord bot is based on CRCON, a community-developed management tool for Hell Let Loose. It efficiently scans admin ping messages for reported player names and provides important information to help your admins make quick and informed decisions. It includes details such as player names, Steam IDs, number of team kills, team kill streaks, and total game time on the server.
 
-Moreover, the bot is responsive to squad leader reports. For example:
+In addition, the bot responds to reports if only squad leaders of a specific squad are reported. For example:
 
-!admin Squad leader Dog is not communicating
+!admin Squad leader dog is not communicating
 
-In response, the bot displays the specific squad leader of the reported squad. For both scenarios, the bot offers the option to either remove the player from the server with a simple click on a kick button or to leave them if the report is deemed baseless.
+In response, the bot displays the specific squad leader of the reported squad. For both scenarios, the bot offers the option to either remove the player from the server with a simple click of a kick button or to leave if the report is deemed unfounded.
 
-Additionally, the player who reported the squad leader or another player will immediately receive feedback from the Discord bot, indicating whether the player was kicked or if the report was not followed up on.
+Additionally, the player who reported the squad leader or another player will immediately receive feedback from the Discord bot indicating whether the player was kicked or whether the report was not followed up on.
+
 ## Prerequisites
 
 - Python 3.8 or higher.
