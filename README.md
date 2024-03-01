@@ -93,3 +93,9 @@ Additionally, the player who reported the squad leader or another player will im
 2. Add a new section for the language with key-value pairs for translations.
 
 3. Save the file and ensure the bot can load the new language.
+
+## Screenshots
+
+![SquadLead-Report](https://i.imgur.com/sdjWTMQ.jpg)
+![Player-Report](https://i.imgur.com/SYFRJqT.jpeg)
+![Report-to-player](https://i.imgur.com/XRQ6nKX.jpeg)
