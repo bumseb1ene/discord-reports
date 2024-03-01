@@ -7,7 +7,7 @@ This Discord bot is designed to interact with users in a Discord server, respond
 - Python 3.8 or higher.
 - `discord.py` library.
 - Additional dependencies: `python-dotenv`.
-- CRCON: [HLL RCON Tool](https://github.com/MarechJ/hll_rcon_tool)
+- [CRCON](https://github.com/MarechJ/hll_rcon_tool)
 
 ## Installation
 
