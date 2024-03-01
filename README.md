@@ -42,7 +42,51 @@ Additionally, the player who reported the squad leader or another player will im
 
 ## Configuration
 
-1. **Bot Token**: Obtain your Discord bot token from the Discord Developer Portal. Add it to your environment variables or a `.env` file in your bot's directory.
+1. **Bot Token and Privileged Gateway Intents**:
+   
+   To get your Discord bot token and enable the necessary Privileged Gateway Intents, follow these steps:
+
+   a. **Create a Discord Bot Account**:
+      - Go to the [Discord Developer Portal](https://discord.com/developers/applications).
+      - Log in with your Discord account.
+      - Click on the "New Application" button.
+      - Give your application a name and click "Create".
+
+   b. **Set up a Bot User**:
+      - In your application settings, click on the “Bot” tab in the sidebar.
+      - Click the "Add Bot" button and confirm by clicking "Yes, do it!".
+      - Customize your bot by giving it a name and an avatar if desired.
+
+   c. **Enable Privileged Gateway Intents**:
+      - Still on the “Bot” tab, scroll down to find the “Privileged Gateway Intents” section.
+      - Enable the intents that your bot requires. For most bots, enabling the following intents is necessary:
+        - `Presence Intent`: Allows the bot to receive presence updates (online status, game playing, etc.).
+        - `Server Members Intent`: Allows the bot to receive updates about server members (join, leave, update, etc.).
+        - `Message Content Intent`: Required to receive notifications about new messages and message content in text channels.
+      - Note that enabling these intents might require additional verification steps depending on your bot's use case and the number of servers it's in.
+
+   d. **Configure Bot Permissions**:
+      - Under “Bot Permissions”, select the necessary permissions your bot requires to function. For this bot, you should consider the following permissions:
+        - `Send Messages`: Allows the bot to send messages in channels.
+        - `Read Message History`: Enables the bot to read previous messages in a channel.
+        - `Add Reactions`: Allows the bot to add reactions to messages.
+        - `Manage Messages`: If the bot needs to edit or delete messages.
+        - `Embed Links`: Allows the bot to use embedded links in messages.
+        - `View Channel`: Enables the bot to see and access channels.
+      - Be mindful of the permissions you choose, as granting overly permissive or administrative permissions can pose a security risk.
+
+   e. **Get the Bot Token**:
+      - Under the “Token” section, click on the “Copy” button to copy your bot’s token.
+      - Be sure to keep this token secure and never share it publicly, as it allows control over your bot.
+
+   f. **Add the Token to Your Bot's Configuration**:
+      - Add the copied token to your environment variables or a `.env` file in your bot's directory:
+        ```
+        DISCORD_BOT_TOKEN=your_discord_bot_token
+        ```
+      - Replace `your_discord_bot_token` with the token you copied.
+
+   This token is essential for your bot to log in and connect to the Discord servers. Additionally, enabling the correct Privileged Gateway Intents is crucial for your bot to function properly.
 
 2. **API Credentials**: Add a new user to CRCON and generate a new API token
 
