@@ -99,6 +99,7 @@ Additionally, the player who reported the squad leader or another player will im
    c. **Generate an API Key**:
       - Return to the landing page and click on 'Add' under the Django API Key section.
       - Select the user you created and copy the generated API Key.
+      - Example of an API Key: `493ac44e-5543-4e58-9359-c08943992c6e`
    
    d. **Add the API Key to Your `.env` File**:
       - Add this API Key to your `.env` file in your bot's directory. It should look something like this:
@@ -113,7 +114,7 @@ Additionally, the player who reported the squad leader or another player will im
 3. **.env File Example**:
    ```
    DISCORD_BOT_TOKEN=your_discord_bot_token
-   API_BASE_URL=https://rcon.example.com 
+   API_BASE_URL=https://rcon.xyz.com 
    API_TOKEN=your_api_token
    USERNAME=api_username
    PASSWORD=api_password
