@@ -88,7 +88,7 @@ Additionally, the player who reported the squad leader or another player will im
 
    This token is essential for your bot to log in and connect to the Discord servers. Additionally, enabling the correct Privileged Gateway Intents is crucial for your bot to function properly.
 
-2. **API Credentials**: Add a new user to CRCON and generate a new API token by following these steps:
+2. **CRCON API**: Add a new user to CRCON and generate a new API token by following these steps:
 
    a. **Access Your CRCON Admin Interface**:
       - Navigate to your CRCON admin interface. For example: `https://rcon.xyz.com/admin`.
