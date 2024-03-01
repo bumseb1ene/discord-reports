@@ -26,6 +26,18 @@ Additionally, the player who reported the squad leader or another player will im
    pip install discord.py
    pip install python-dotenv
    ```
+3. Create a new user:
+   ```su adduser yourusername
+   ```
+4. Clone the GitHub Repository and Create a Project Folder**: Download the bot's source code and create a dedicated folder for the bot:
+   ```
+   sudo adduser yourusername  # Create a new user
+   su - yourusername          # Switch to the new user
+   mkdir bot-directory        # Create a new directory for the bot
+   cd bot-directory           # Change to the bot directory
+   git clone https://github.com/YourUsername/YourRepository.git  # Clone the GitHub repository
+   python bot.py```
+
 
 ## Configuration
 
