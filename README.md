@@ -32,11 +32,11 @@ Additionally, the player who reported the squad leader or another player will im
    su - yourusername          # Switch to the new user
 
    ```
-4. Clone the GitHub Repository and Create a Project Folder**: Download the bot's source code and create a dedicated folder for the bot:
+4. Create a Project Folder and Clone the GitHub Repository:
    ```bash
    mkdir bot-directory        # Create a new directory for the bot
    cd bot-directory           # Change to the bot directory
-   git clone https://github.com/YourUsername/YourRepository.git  # Clone the GitHub repository
+   git clone https://github.com/bumseb1ene/discord-reports.git  # Clone the GitHub repository
    ```
 
 
@@ -44,7 +44,7 @@ Additionally, the player who reported the squad leader or another player will im
 
 1. **Bot Token**: Obtain your Discord bot token from the Discord Developer Portal. Add it to your environment variables or a `.env` file in your bot's directory.
 
-2. **API Credentials**: If your bot interacts with external APIs, include necessary credentials like API keys in your environment variables or the `.env` file.
+2. **API Credentials**: Add a new user to CRCON and generate a new API token
 
 3. **.env File Example**:
    ```
