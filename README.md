@@ -4,11 +4,11 @@ This Discord bot is based on CRCON, a community-developed management tool for He
 
 In addition, the bot responds to reports if only squad leaders of a specific squad are reported. For example:
 
-!admin Squad leader dog is not communicating
+!admin Squadleader dog not communicating
 
-In response, the bot displays the specific squad leader of the reported squad. For both scenarios, the bot offers the option to either remove the player from the server with a simple click of a kick button or to leave if the report is deemed unfounded.
+In response, the bot displays the specific squad leader of the reported squad. For both scenarios, the bot offers the option to either remove the player from the server with a simple click of a kick button or not to kick him if the report is deemed unfounded.
 
-Additionally, the player who reported the squad leader or another player will immediately receive feedback from the Discord bot indicating whether the player was kicked or whether the report was not followed up on.
+In addition, the player who reported the group leader or another player will immediately receive feedback from the Discord bot as to whether the player was kicked or whether the report was not investigated.
 
 ## Prerequisites
 
@@ -88,7 +88,7 @@ Additionally, the player who reported the squad leader or another player will im
 
    This token is essential for your bot to log in and connect to the Discord servers. Additionally, enabling the correct Privileged Gateway Intents is crucial for your bot to function properly.
 
-2. **CRCON API**: Add a new user to CRCON and generate a new API token by following these steps:
+2. **Using CRCON API**: Add a new user to CRCON and generate a new API token by following these steps:
 
    a. **Access Your CRCON Admin Interface**:
       - Navigate to your CRCON admin interface. For example: `https://rcon.xyz.com/admin`.
