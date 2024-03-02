@@ -137,23 +137,50 @@ Important: The bot may sometimes provide incorrect messages as the input depends
 
 ## Running Permanently with Systemctl
 
-1. **Systemd Service File**: Create `discord_bot.service` in `/etc/systemd/system/` with appropriate content. Adjust paths as needed.
+1. **Systemd Service File**: To ensure your Discord bot runs continuously as a service, follow these steps to create a `discord_bot.service` file in `/etc/systemd/system/`:
 
-2. **Reload Systemd**:
-   ```bash
-   sudo systemctl daemon-reload
-   ```
+   a. **Create the Service File**:
+      - Open a new file with a text editor (like nano or vim) with the command:
+        ```bash
+        sudo nano /etc/systemd/system/discord_bot.service
+        ```
+      - Add the following content to the file:
+        ```
+        [Unit]
+        Description=Discord Bot Service
+        After=network.target
 
-3. **Enable and Start the Service**:
-   ```bash
-   sudo systemctl enable discord_bot.service
-   sudo systemctl start discord_bot.service
-   ```
+        [Service]
+        Type=simple
+        User=yourusername
+        WorkingDirectory=/path/to/your/bot
+        ExecStart=/usr/bin/python3 /path/to/your/bot/bot.py
+        Restart=on-failure
 
-4. **Check Status**:
-   ```bash
-   sudo systemctl status discord_bot.service
-   ```
+        [Install]
+        WantedBy=multi-user.target
+        ```
+      - Replace `yourusername` with the username of the user running the bot.
+      - Replace `/path/to/your/bot` with the actual path to your bot's directory.
+      - If your Python binary is located elsewhere, adjust the `ExecStart` path accordingly.
+
+   b. **Enable and Start the Service**:
+      - Enable the service to start on boot with the command:
+        ```bash
+        sudo systemctl enable discord_bot.service
+        ```
+      - Start the service with:
+        ```bash
+        sudo systemctl start discord_bot.service
+        ```
+
+   c. **Check Status**:
+      - To check the status of your bot service, use:
+        ```bash
+        sudo systemctl status discord_bot.service
+        ```
+
+   This setup ensures your Discord bot runs as a system service, automatically starting on boot and restarting on failure.
 
 ## Monitoring and Logs
 
