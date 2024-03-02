@@ -10,6 +10,8 @@ In response, the bot displays the specific squad leader of the reported squad. F
 
 In addition, the player who reported the group leader or another player will immediately receive feedback from the Discord bot as to whether the player was kicked or whether the report was not investigated.
 
+Important: The bot may sometimes provide incorrect messages as the input depends on the player.
+
 ## Prerequisites
 
 - Python 3.8 or higher.
