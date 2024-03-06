@@ -123,13 +123,13 @@ Important: The bot may sometimes provide incorrect messages as the input depends
    USER_LANG=de
 
    API_BASE_URL_1=https://rcon1.example.com
-   SERVER_NAME_1=Server 1
+   SERVER_NAME_1=Server 1 # Enter the "short_name" of your CRCON SETTINGS
 
    API_BASE_URL_2=https://rcon2.example.com
-   SERVER_NAME_2=Server 2
+   SERVER_NAME_2=Server 2 # Enter the "short_name" of your CRCON SETTINGS
 
    API_BASE_URL_3=https://rcon3.example.com
-   SERVER_NAME_3=Server 3
+   SERVER_NAME_3=Server 3 # Enter the "short_name" of your CRCON SETTINGS
 
    MAX_SERVERS=3
    ```
