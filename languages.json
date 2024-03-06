@@ -47,8 +47,11 @@
         "report_not_granted": "Your report has not been granted.",
         "no_action_performed": "No action performed.",
         "bot_logged_in": "{} has logged in.",
-        "api_login_successful": "API login successful!",
-        "api_login_failed": "API login failed. Check the credentials."
+        "api_login_successful": "Successfully logged into the API: {}",
+        "api_login_failed": "Error logging into the API: {}",
+        "no_api_base_url_found": "No suitable API base URL found.",
+        "no_server_name_found": "No server name found in the embed.",
+        "kick_reason": "You have violated server rules"
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -98,8 +101,11 @@
         "report_not_granted": "Deinem Report wurde nicht stattgegeben.",
         "no_action_performed": "Keine Aktion durchgeführt.",
         "bot_logged_in": "{} hat sich eingeloggt.",
-        "api_login_successful": "API Login erfolgreich!",
-        "api_login_failed": "API Login fehlgeschlagen. Überprüfen Sie die Anmeldedaten."
+        "api_login_successful": "Erfolgreich bei der API angemeldet: {}",
+        "api_login_failed": "Fehler bei der API-Anmeldung: {}",
+        "no_api_base_url_found": "Keine passende API-Basis-URL gefunden.",
+        "no_server_name_found": "Kein Servername im Embed gefunden.",
+        "kick_reason": "Du hast gegen Serverregeln verstoßen"
 
     }
 }
