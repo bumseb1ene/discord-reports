@@ -45,7 +45,7 @@ Important: The bot may sometimes provide incorrect messages as the input depends
 ## Configuration
 
 1. **Bot Token and Privileged Gateway Intents**:
-   
+
    To get your Discord bot token and enable the necessary Privileged Gateway Intents, follow these steps:
 
    a. **Create a Discord Bot Account**:
@@ -94,34 +94,44 @@ Important: The bot may sometimes provide incorrect messages as the input depends
 
    a. **Access Your CRCON Admin Interface**:
       - Navigate to your CRCON admin interface. For example: `https://rcon.xyz.com/admin`.
-   
+
    b. **Create a New User and Set a Password**:
       - Create a new user and assign a password. Ensure that this user has sufficient rights, including the ability to kick and ban players.
-   
+
    c. **Generate an API Key**:
       - Return to the landing page and click on 'Add' under the Django API Key section.
       - Select the user you created and copy the generated API Key.
       - Example of an API Key: `493ac44e-5543-4e58-9359-c08943992c6e`
-   
+
    d. **Add the API Key to Your `.env` File**:
       - Add this API Key to your `.env` file in your bot's directory. It should look something like this:
         ```
         API_TOKEN=your_api_token
         ```
       - Replace `your_api_token` with the API Key you copied.
-   
+
    This API key is crucial for your bot to communicate with the CRCON system and perform administrative actions like kicking or banning players.
 
 
 3. **.env File Example**:
    ```
-   DISCORD_BOT_TOKEN=your_discord_bot_token
-   API_BASE_URL=https://rcon.xyz.com 
-   API_TOKEN=your_api_token
-   USERNAME=api_username
-   PASSWORD=api_password
-   ALLOWED_CHANNEL_ID=DISCORD_CHANNEL_ID
-   USER_LANG=en
+   DISCORD_BOT_TOKEN=
+   USERNAME=
+   PASSWORD=
+   API_TOKEN=
+   ALLOWED_CHANNEL_ID=
+   USER_LANG=de
+
+   API_BASE_URL_1=https://rcon1.example.com
+   SERVER_NAME_1=Server 1
+
+   API_BASE_URL_2=https://rcon2.example.com
+   SERVER_NAME_2=Server 2
+
+   API_BASE_URL_3=https://rcon3.example.com
+   SERVER_NAME_3=Server 3
+
+   MAX_SERVERS=3
    ```
 
 4. **Bot Script (`bot.py`)**: Update specific configurations in `bot.py` as needed.
