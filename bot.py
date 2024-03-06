@@ -23,11 +23,11 @@ load_dotenv()
 
 # Discord Bot configuration
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-API_BASE_URL = os.getenv('API_BASE_URL')
 API_TOKEN = os.getenv('API_TOKEN')
 ALLOWED_CHANNEL_ID = int(os.getenv('ALLOWED_CHANNEL_ID'))  # Assuming channel ID is an integer
 USERNAME = os.getenv('USERNAME')
 PASSWORD = os.getenv('PASSWORD')
+MAX_SERVERS = int(os.getenv('MAX_SERVERS'))
 user_lang = os.getenv('USER_LANG', 'en')  # Standardwert auf 'en' gesetzt
 
 # Setting up Discord client
@@ -40,27 +40,76 @@ intents.guild_messages = True
 class MyBot(commands.Bot):
     def __init__(self, intents):
         super().__init__(command_prefix="!", intents=intents)
-        self.api_client = APIClient(API_BASE_URL, API_TOKEN)
+        self.api_client = APIClient(None, API_TOKEN)  # Initialisieren ohne API_BASE_URL
         self.author_name = ""  # Initialisieren des Attributs für den Autorennamen
+        self.api_base_url = None
+        self.api_logged_in = False
+
+    async def login_to_api(self, api_base_url):
+        if not self.api_logged_in or self.api_base_url != api_base_url:
+            self.api_base_url = api_base_url
+            self.api_client.base_url = api_base_url
+            self.api_logged_in = await self.api_client.login(USERNAME, PASSWORD)
+            if self.api_logged_in:
+                print(get_translation(user_lang, "api_login_successful").format(api_base_url))
+            else:
+                print(get_translation(user_lang, "api_login_failed").format(api_base_url))
+
+    def extract_server_name(self, embed):
+        if embed.footer:
+            return embed.footer.text.strip()
+        return None
+
+    def get_api_base_url_from_server_name(self, extracted_server_name):
+        # Durchsuchen Sie alle möglichen SERVER_NAME_X und finden Sie die übereinstimmende API_BASE_URL_X
+        for i in range(1, MAX_SERVERS + 1):
+            server_name_env_var = f"SERVER_NAME_{i}"
+            if os.getenv(server_name_env_var) == extracted_server_name:
+                return os.getenv(f"API_BASE_URL_{i}")
+        return None  # Keine passende API-Basis-URL gefunden
+
 
     async def on_ready(self):
-        print(get_translation(user_lang, "bot_logged_in").format(self.user))
-        if await self.api_client.login(USERNAME, PASSWORD):
-            print(get_translation(user_lang, "api_login_successful"))
-        else:
-            print(get_translation(user_lang, "api_login_failed"))
+        print(f'{self.user} has logged in.')
+
 
     async def on_message(self, message):
-        trigger_words = ["able", "baker", "charlie", "commander", "kommandant", "dog", "easy", "fox", "george", "how", "item", "jig", "king", "love", "mike", "negat", "option", "prep", "queen", "roger", "sugar", "tare", "uncle", "victor", "william", "x-ray", "yoke", "zebra"]
-        team = None  # Initialisierung von 'team'
-
+        # Prüfen Sie zuerst, ob die Nachricht von Ihrem Bot oder von einem unerlaubten Kanal kommt.
         if message.author == self.user or message.channel.id != ALLOWED_CHANNEL_ID:
             return
 
+        server_name = None
+        api_base_url = None
+
         if message.embeds:
             embed = message.embeds[0]
-            message_author = message.author.display_name if message.author else get_translation(user_lang, "unknown_sender")
-            logging.info(get_translation(user_lang, "message_sent_by").format(message_author))
+            if embed.footer:
+                server_name = self.extract_server_name(embed)
+                if server_name:
+                    api_base_url = self.get_api_base_url_from_server_name(server_name)
+                    if api_base_url:
+                        self.api_client.base_url = api_base_url
+                        await self.login_to_api(api_base_url)
+                    else:
+                        print(get_translation(user_lang, "no_api_base_url_found"))
+                else:
+                    print(get_translation(user_lang, "no_server_name_found"))
+
+        if server_name is not None:
+            api_base_url = self.get_api_base_url_from_server_name(server_name)
+
+        # Überprüfen Sie, ob eine gültige URL gefunden wurde, bevor Sie fortfahren
+        if api_base_url:
+            self.api_client.base_url = api_base_url
+            await self.login_to_api(api_base_url)
+
+        trigger_words = ["able", "baker", "charlie", "commander", "kommandant", "dog", "easy", "fox", "george", "how", "item", "jig", "king", "love", "mike", "negat", "option", "prep", "queen", "roger", "sugar", "tare", "uncle", "victor", "william", "x-ray", "yoke", "zebra"]
+        team = None  # Initialisierung von 'team'
+
+        if message.embeds:
+            embed = message.embeds[0]
+            message_author = message.author.display_name if message.author else "Unbekannter Sender"
+            logging.info(f"Message send from Author: {message_author}")
 
             # Aktualisiertes Regex-Muster
             updated_regex_pattern = r"(.+?)\s+\[(Axis|Allies)\](?:\[\w+\])?"
@@ -70,10 +119,10 @@ class MyBot(commands.Bot):
                 if match:
                     self.author_name = match.group(1).strip()
                     team = match.group(2).strip()
-                    logging.info(get_translation(user_lang, "embed_author_name").format(self.author_name))
-                    logging.info(get_translation(user_lang, "detected_team").format(team))
+                    logging.info(f"Embed Author Name: {self.author_name}")
+                    logging.info(f"Detected team: {team}")
                 else:
-                    logging.error(get_translation(user_lang, "author_team_extract_error"))
+                    logging.error("Could not extract author name and team from the embed author.")
 
         if embed.description:
             clean_description = remove_markdown(embed.description)
@@ -88,13 +137,13 @@ class MyBot(commands.Bot):
 
                 if reported_parts:
                     if any(word in reported_parts for word in trigger_words):
-                        logging.info(get_translation(user_lang, "identified_unit_report"))
+                        logging.info("Identified as unit report.")
                         trigger_word_index = next(i for i, part in enumerate(reported_parts) if part in trigger_words)
                         unit_name = reported_parts[trigger_word_index]
 
                         # Accept 'commander' and 'kommandant' as trigger words
                         if "commander" in reported_parts or "kommandant" in reported_parts:
-                            unit_name = "commmand"
+                            unit_name = "command"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
 
                         roles = ["officer", "spotter", "tankcommander", "armycommander"]
                         logging.info(f"Unit name: {unit_name}, Roles: {roles}")
@@ -103,19 +152,23 @@ class MyBot(commands.Bot):
                         if team:
                             await self.find_and_respond_unit(team, unit_name, roles, message)
                         else:
-                            logging.error(get_translation(user_lang, "team_not_identified"))
+                            logging.error("Team not identified for unit report.")
 
                     else:
-                        logging.info(get_translation(user_lang, "identified_player_report"))
+                        logging.info("Identified as player report.")
                         reported_identifier = " ".join(reported_parts)
-                        logging.info(get_translation(user_lang, "reported_identifier").format(reported_identifier))
+                        logging.info(f"Reported identifier: {reported_identifier}")
                         await self.find_and_respond_player(message, reported_identifier)
-                        logging.info(get_translation(user_lang, "find_respond_player_called"))
+                        logging.info("find_and_respond_player called.")
+
 
 
     async def find_and_respond_unit(self, team, unit_name, roles, message):
-        # Abfragen der Spielerdaten von der API
         player_data = await self.api_client.get_detailed_players()
+
+        if player_data is None or 'result' not in player_data or 'players' not in player_data['result']:
+            logging.error("Failed to retrieve player data or player data is incomplete.")
+            return
 
         # Sicherstellen, dass unit_name nicht None ist
         if unit_name is None:
@@ -129,7 +182,7 @@ class MyBot(commands.Bot):
             if player_unit_name is None:
                 player_unit_name = ""
 
-            if player_info['team'].lower() == team.lower() and \
+            if player_info['team'] and player_info['team'].lower() == team.lower() and \
                player_unit_name.lower() == unit_name.lower() and \
                player_info['role'].lower() in [role.lower() for role in roles]:
                 player_details = {
@@ -275,12 +328,13 @@ class MyBot(commands.Bot):
         original_message = await interaction.channel.fetch_message(self.last_response_message_id)
         # Führen Sie hier Aktionen mit original_message durch, z. B. Reaktionen hinzufügen/entfernen
 
+
     async def confirm_kick(self, interaction: discord.Interaction):
         steam_id_64 = interaction.data['custom_id'].split('_')[1]
 
         player_name = await self.api_client.get_player_by_steam_id(steam_id_64)
         if player_name:
-            success = await self.api_client.do_kick(player_name, steam_id_64)
+            success = await self.api_client.do_kick(player_name, steam_id_64, user_lang)
             if success:
                 kicked_message = get_translation(user_lang, "player_kicked_successfully").format(player_name)
                 await interaction.response.send_message(kicked_message, ephemeral=True)

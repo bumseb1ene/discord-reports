@@ -1,5 +1,7 @@
 import aiohttp
 import logging
+from helpers import get_translation
+from dotenv import load_dotenv
 
 class APIClient:
     def __init__(self, base_url, api_token):
@@ -28,110 +30,103 @@ class APIClient:
             return True
 
     async def get_player_data(self):
-        await self.create_session()
         url = f'{self.base_url}/api/get_live_game_stats'
         try:
-            logging.info(f"Fetching player data from URL: {url}")  # Log the URL being hit
-            async with self.session.get(url) as response:
-                response_text = await response.text()  # Get response text for logging
-                logging.info(f"API response received: Status {response.status}, Body {response_text}")  # Log status and body
+            # Verwenden von async with zur Erstellung der ClientSession
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url) as response:
+                    # Get response text for logging
+                    response_text = await response.text()
+                    logging.info(f"API response received: Status {response.status}, Body {response_text}")
 
-                if response.status != 200:
-                    logging.error(f"API response error: Status {response.status}, Body {response_text}")  # Log if status is not 200
-                    return None
+                    if response.status != 200:
+                        logging.error(f"API response error: Status {response.status}, Body {response_text}")
+                        return None
 
-                return await response.json()  # Return JSON response if successful
-
+                    return await response.json()  # Return JSON response if successful
         except Exception as e:
-            logging.error(f"Error fetching player data: {e}")  # Log exceptions
+            logging.error(f"Error fetching player data: {e}")
             return None
 
-
     async def get_detailed_players(self):
-        await self.create_session()
         url = f'{self.base_url}/api/get_detailed_players'
         try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                return await response.json()
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.json()
         except Exception as e:
             logging.error(f"Error fetching detailed players data: {e}")
             return None
 
-    async def do_kick(self, player, steam_id_64):
-        await self.create_session()
+    async def do_kick(self, player, steam_id_64, user_lang):
         url = f'{self.base_url}/api/do_kick'
-
-        # Die Daten, die an die API gesendet werden
+        reason = get_translation(user_lang, "kick_reason")
         data = {
             'player': player,
-            'reason': "Du hast gegen Serverregeln verstoßen",
+            'reason': reason,
             'by': "Admin",
             'steam_id_64': steam_id_64
         }
-
-        # Loggen der zu sendenden Daten
         logging.info(f"Sending kick request to API: {data}")
 
         try:
-            async with self.session.post(url, json=data) as response:
-                response_text = await response.text()
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.post(url, json=data) as response:
+                    response_text = await response.text()
+                    logging.info(f"API response for do_kick: Status {response.status}, Body {response_text}")
 
-                # Loggen der Antwort der API
-                logging.info(f"API response for do_kick: Status {response.status}, Body {response_text}")
-
-                if response.status != 200:
-                    logging.error(f"Fehler beim Kicken des Spielers: {response.status}, Antwort: {response_text}")
-                    return False
-                return True
+                    if response.status != 200:
+                        logging.error(f"Fehler beim Kicken des Spielers: {response.status}, Antwort: {response_text}")
+                        return False
+                    return True
         except Exception as e:
             logging.error(f"Error sending kick request: {e}")
             return False
 
     async def get_player_by_steam_id(self, steam_id_64):
-        await self.create_session()
         url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
-
         try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                data = await response.json()
-                if data and 'result' in data and 'names' in data['result']:
-                    # Nehmen Sie das neueste Namenobjekt, das in der Regel das aktuellste sein sollte
-                    latest_name_record = data['result']['names'][-1]
-                    return latest_name_record['name']
-                return None
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    if data and 'result' in data and 'names' in data['result']:
+                        latest_name_record = data['result']['names'][-1]
+                        return latest_name_record['name']
+                    return None
         except Exception as e:
             logging.error(f"Error fetching player data for Steam ID {steam_id_64}: {e}")
             return None
+
 
     async def get_player_by_id(self, steam_id_64):
-        await self.create_session()
         url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
-
         try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                data = await response.json()
-                if data and 'result' in data:
-                    # Return the entire 'result' object
-                    return data['result']
-                return None
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    if data and 'result' in data:
+                        return data['result']
+                    return None
         except Exception as e:
             logging.error(f"Error fetching player data for Steam ID {steam_id_64}: {e}")
             return None
+
 
 
     async def get_players_fast(self):
-        await self.create_session()
         url = f'{self.base_url}/api/get_players_fast'
         try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                return await response.json()
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.json()
         except Exception as e:
             logging.error(f"Error fetching fast players data: {e}")
             return None
+
 
     async def do_temp_ban(self, player, steam_id_64, duration_hours, reason, by):
         await self.create_session()
@@ -164,6 +159,11 @@ class APIClient:
             "steam_id_64": steam_id_64,
             "message": message
         }
-        async with self.session.post(url, json=data) as response:
-            response.raise_for_status()
-            return await response.json()
+        try:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.post(url, json=data) as response:
+                    response.raise_for_status()
+                    return await response.json()
+        except Exception as e:
+            logging.error(f"Error sending message to player {player}: {e}")
+            return None
