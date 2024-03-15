@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 from api_client import APIClient  # Assuming this is the same as provided earlier
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
-from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation
+from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name
+from modals import TempBanModal, TempBanButton
+from perma import PermaBanModal, PermaBanButton
 
 
 import logging
@@ -41,7 +43,6 @@ class MyBot(commands.Bot):
     def __init__(self, intents):
         super().__init__(command_prefix="!", intents=intents)
         self.api_client = APIClient(None, API_TOKEN)  # Initialisieren ohne API_BASE_URL
-        self.author_name = ""  # Initialisieren des Attributs für den Autorennamen
         self.api_base_url = None
         self.api_logged_in = False
 
@@ -117,9 +118,9 @@ class MyBot(commands.Bot):
             if embed.author and embed.author.name:
                 match = re.match(updated_regex_pattern, embed.author.name)
                 if match:
-                    self.author_name = match.group(1).strip()
+                    set_author_name(match.group(1).strip())
                     team = match.group(2).strip()
-                    logging.info(f"Embed Author Name: {self.author_name}")
+                    logging.info(f"Embed Author Name: {get_author_name()}")
                     logging.info(f"Detected team: {team}")
                 else:
                     logging.error("Could not extract author name and team from the embed author.")
@@ -210,11 +211,21 @@ class MyBot(commands.Bot):
 
                 # Erstellen eines Buttons
                 button_label = get_translation(user_lang, "kick_player").format(current_player_name) if current_player_name else get_translation(user_lang, "kick_player_generic")
-                button = Button(label=button_label, style=discord.ButtonStyle.red, custom_id=player['steam_id_64'])
+                button = Button(label=button_label, style=discord.ButtonStyle.green, custom_id=player['steam_id_64'])
                 button.steam_id_64 = player['steam_id_64']  # Speichern der Steam-ID im Button
                 button.player_name = current_player_name  # Speichern des Spielernamens im Button
                 button.callback = self.button_click  # Verknüpfen des Callbacks
                 view.add_item(button)
+
+                # Temp Ban-Button für den Spieler erstellen
+                temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(player['name'])
+                temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
+                view.add_item(temp_ban_button)
+
+                # Perma Ban-Button für den Spieler erstellen
+                perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(player['name'])
+                perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
+                view.add_item(perma_ban_button)
 
                 # Erstellen des Buttons für unbegründeten Report
                 unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"), style=discord.ButtonStyle.grey, custom_id="unjustified_report")
@@ -294,10 +305,21 @@ class MyBot(commands.Bot):
 
             # Erstellen und Hinzufügen der Buttons
             button_label = get_translation(user_lang, "kick_player").format(best_match)
-            button = Button(label=button_label, style=discord.ButtonStyle.red, custom_id=best_player_data['steam_id_64'])
+            button = Button(label=button_label, style=discord.ButtonStyle.green, custom_id=best_player_data['steam_id_64'])
             button.callback = self.button_click
             view = View(timeout=None)
             view.add_item(button)
+
+            # Temp Ban-Button hinzufügen
+            temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(best_match)
+            temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
+            view.add_item(temp_ban_button)
+
+            # Perma Ban-Button erstellen
+            perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(best_match)
+            perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
+            view.add_item(perma_ban_button)
+
 
             unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"), style=discord.ButtonStyle.grey, custom_id="unjustified_report")
             unjustified_report_button.callback = self.unjustified_report_click
@@ -328,26 +350,26 @@ class MyBot(commands.Bot):
         original_message = await interaction.channel.fetch_message(self.last_response_message_id)
         # Führen Sie hier Aktionen mit original_message durch, z. B. Reaktionen hinzufügen/entfernen
 
-
     async def confirm_kick(self, interaction: discord.Interaction):
         steam_id_64 = interaction.data['custom_id'].split('_')[1]
-
         player_name = await self.api_client.get_player_by_steam_id(steam_id_64)
+        
         if player_name:
             success = await self.api_client.do_kick(player_name, steam_id_64, user_lang)
             if success:
                 kicked_message = get_translation(user_lang, "player_kicked_successfully").format(player_name)
                 await interaction.response.send_message(kicked_message, ephemeral=True)
-                # Abrufen der Liste aller Spieler, um die Steam-ID des Autors zu finden
+
                 players_data = await self.api_client.get_players_fast()
                 if players_data and 'result' in players_data:
                     players_list = players_data['result']
-                    author_player = next((p for p in players_list if p['name'].lower() == self.author_name.lower()), None)
+                    author_name = get_author_name()
+                    author_player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
+
                     if author_player:
-                        # Senden einer Nachricht an den Autor
-                        author_steam_id_64 = author_player['steam_id_64']
+                        steam_id_64 = author_player['steam_id_64']
                         message_to_author = get_translation(user_lang, "message_to_author_kicked").format(player_name)
-                        await self.api_client.do_message_player(self.author_name, author_steam_id_64, message_to_author)
+                        await self.api_client.do_message_player(author_name, steam_id_64, message_to_author)
                     else:
                         logging.error(get_translation(user_lang, "author_not_found"))
                 else:
@@ -358,9 +380,7 @@ class MyBot(commands.Bot):
             await interaction.response.send_message(get_translation(user_lang, "player_name_not_retrieved"), ephemeral=True)
 
         try:
-            # Abrufen der ursprünglichen Nachricht, auf die reagiert werden soll
             original_message = await interaction.channel.fetch_message(self.last_response_message_id)
-            # Hinzufügen des grünen Hakens und Deaktivieren des Buttons
             await original_message.clear_reaction('⏳')
             await original_message.add_reaction('✅')
             new_view = discord.ui.View(timeout=None)
@@ -372,7 +392,8 @@ class MyBot(commands.Bot):
         except discord.NotFound:
             logging.error(get_translation(user_lang, "message_not_found_or_uneditable"))
         except Exception as e:
-            logging.error(get_translation(user_lang, "unexpected_error").format(e))
+            logging.error(f"Unexpected error: {e}")
+
 
     async def unjustified_report_click(self, interaction: discord.Interaction):
         print("Unjustified report click triggered")
@@ -389,21 +410,23 @@ class MyBot(commands.Bot):
         await interaction.response.send_message(confirm_message, ephemeral=True)
         print("Confirmation message sent")
 
-        author_name = self.author_name
+        author_name = get_author_name()
         print(f"Using extracted author name: {author_name}")
 
         players_data = await self.api_client.get_players_fast()
         if players_data and 'result' in players_data:
             players_list = players_data['result']
-            player = next((p for p in players_list if p['name'].lower() == self.author_name.lower()), None)
+            player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
             if player:
                 steam_id_64 = player['steam_id_64']
                 message_to_send = get_translation(user_lang, "report_not_granted")
-                await self.api_client.do_message_player(self.author_name, steam_id_64, message_to_send)
+                await self.api_client.do_message_player(author_name, steam_id_64, message_to_send)
             else:
-                logging.error(f"Player {self.author_name} not found.")
+                logging.error(f"Player {author_name} not found.")
         else:
             logging.error("Failed to retrieve players list or 'result' not in players_data.")
+
+
 
     async def no_action_click(self, interaction: discord.Interaction):
         # Entfernen aller Buttons aus der Nachricht
@@ -426,4 +449,4 @@ class MyBot(commands.Bot):
 
 # Running the bot
 bot = MyBot(intents)
-bot.run(TOKEN)  # Uncomment these lines to run the bot
+bot.run(TOKEN)

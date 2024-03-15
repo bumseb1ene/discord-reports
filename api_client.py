@@ -129,7 +129,10 @@ class APIClient:
 
 
     async def do_temp_ban(self, player, steam_id_64, duration_hours, reason, by):
-        await self.create_session()
+        # Überprüfen, ob eine Sitzung existiert. Wenn nicht, erstellen Sie eine.
+        if not self.session:
+            await self.create_session()
+
         url = f'{self.base_url}/api/do_temp_ban'
         data = {
             'player': player,
@@ -141,15 +144,39 @@ class APIClient:
 
         try:
             async with self.session.post(url, json=data) as response:
-                response_text = await response.text()
-                logging.info(f"API response for do_temp_ban: Status {response.status}, Body {response_text}")
-
                 if response.status != 200:
+                    # Logging der Fehlermeldung
+                    response_text = await response.text()
                     logging.error(f"Fehler beim Anwenden des temporären Bans: {response.status}, Antwort: {response_text}")
                     return False
                 return True
         except Exception as e:
             logging.error(f"Fehler beim Senden der Temp-Ban-Anfrage: {e}")
+            return False
+            
+    async def do_perma_ban(self, player, steam_id_64, reason, by):
+        # Überprüfen, ob eine Sitzung existiert. Wenn nicht, erstellen Sie eine.
+        if not self.session:
+            await self.create_session()
+
+        url = f'{self.base_url}/api/do_perma_ban'
+        data = {
+            'player': player,
+            'steam_id_64': steam_id_64,
+            'reason': reason,
+            'by': by
+        }
+
+        try:
+            async with self.session.post(url, json=data) as response:
+                if response.status != 200:
+                    # Logging der Fehlermeldung
+                    response_text = await response.text()
+                    logging.error(f"Fehler beim Anwenden des permanenten Bans: {response.status}, Antwort: {response_text}")
+                    return False
+                return True
+        except Exception as e:
+            logging.error(f"Fehler beim Senden der Perma-Ban-Anfrage: {e}")
             return False
 
     async def do_message_player(self, player, steam_id_64, message):

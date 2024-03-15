@@ -30,3 +30,12 @@ with open('languages.json', 'r') as file:
 def get_translation(lang, key):
     '''Fetches the translation for a specific key and language.'''
     return languages.get(lang, {}).get(key, "")
+
+author_name = None
+
+def set_author_name(name):
+    global author_name
+    author_name = name
+
+def get_author_name():
+    return author_name
