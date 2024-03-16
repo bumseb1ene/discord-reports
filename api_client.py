@@ -29,7 +29,7 @@ class APIClient:
                 return False
             return True
 
-    async def get_player_data(self):
+    async def get_player_data(self, steam_id_64):
         url = f'{self.base_url}/api/get_live_game_stats'
         try:
             # Verwenden von async with zur Erstellung der ClientSession
