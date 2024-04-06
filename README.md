@@ -145,6 +145,60 @@ Important: The bot may sometimes provide incorrect messages as the input depends
    python bot.py
    ```
 
+## Running the Discord Bot with Docker
+
+This guide will walk you through the steps to run the Discord Bot using Docker.
+
+### Prerequisites
+- Docker installed on your machine. [Install Docker](https://docs.docker.com/get-docker/)
+
+### Steps to Run the Bot
+
+1. **Clone the Repository**: First, clone the repository to your local machine.
+
+   ```bash
+   git clone https://github.com/bumseb1ene/discord-reports.git
+   cd discord-reports
+   ```
+
+2. **Create a `.env` File**: Create a `.env` file in the root directory of the project with the necessary environment variables. An example structure of the `.env` file is provided as `example.env`. Modify it as needed.
+
+3. **Build the Docker Image**: Build the Docker image from the Dockerfile present in the project directory.
+
+   ```bash
+   docker build -t discord-reports .
+   ```
+
+   This command builds a Docker image named `discord-reports`.
+
+4. **Run the Docker Container**: Start the Docker container in detached mode with the environment file.
+
+   ```bash
+   docker run -d --env-file .env discord-reports
+   ```
+
+   The `-d` flag runs the container in the background.
+
+5. **Check the Bot Status**: To check if the bot is running correctly, you can view the logs.
+
+   ```bash
+   docker logs [Container-ID]
+   ```
+
+   Replace `[Container-ID]` with your actual container's ID, which you can find by using `docker ps`.
+
+6. **Stopping the Container**: If you need to stop the bot, use:
+
+   ```bash
+   docker stop [Container-ID]
+   ```
+
+### Note
+- Make sure to keep your `.env` file secure as it contains sensitive information.
+- The container will run in the background and automatically restart unless you manually stop it.
+
+---
+
 ## Running Permanently with Systemctl
 
 1. **Systemd Service File**: To ensure your Discord bot runs continuously as a service, follow these steps to create a `discord_bot.service` file in `/etc/systemd/system/`:
