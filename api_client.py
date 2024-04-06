@@ -89,12 +89,13 @@ class APIClient:
                     response.raise_for_status()
                     data = await response.json()
                     if data and 'result' in data and 'names' in data['result']:
-                        latest_name_record = data['result']['names'][-1]
-                        return latest_name_record['name']
+                        first_name_record = data['result']['names'][0]  # Änderung hier
+                        return first_name_record['name']
                     return None
         except Exception as e:
             logging.error(f"Error fetching player data for Steam ID {steam_id_64}: {e}")
             return None
+
 
 
     async def get_player_by_id(self, steam_id_64):
