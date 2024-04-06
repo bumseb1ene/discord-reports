@@ -35,18 +35,15 @@ class APIClient:
             # Verwenden von async with zur Erstellung der ClientSession
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
-                    # Get response text for logging
-                    response_text = await response.text()
-                    logging.info(f"API response received: Status {response.status}, Body {response_text}")
-
                     if response.status != 200:
-                        logging.error(f"API response error: Status {response.status}, Body {response_text}")
+                        # Du kannst hier entscheiden, ob du eine Fehlermeldung ausgeben möchtest
                         return None
 
                     return await response.json()  # Return JSON response if successful
         except Exception as e:
-            logging.error(f"Error fetching player data: {e}")
+            # Auch hier kannst du entscheiden, ob du eine Fehlermeldung ausgeben möchtest
             return None
+
 
     async def get_detailed_players(self):
         url = f'{self.base_url}/api/get_detailed_players'

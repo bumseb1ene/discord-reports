@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from api_client import APIClient  # Assuming this is the same as provided earlier
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
-from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name
+from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags
 from modals import TempBanModal, TempBanButton
 from perma import PermaBanModal, PermaBanButton
 
@@ -45,6 +45,8 @@ class MyBot(commands.Bot):
         self.api_client = APIClient(None, API_TOKEN)  # Initialisieren ohne API_BASE_URL
         self.api_base_url = None
         self.api_logged_in = False
+        self.excluded_words = load_excluded_words('exclude_words.json')
+        
 
     async def login_to_api(self, api_base_url):
         if not self.api_logged_in or self.api_base_url != api_base_url:
@@ -125,10 +127,10 @@ class MyBot(commands.Bot):
                 else:
                     logging.error("Could not extract author name and team from the embed author.")
 
-        if embed.description:
-            clean_description = remove_markdown(embed.description)
-            logging.info(f"Cleaned Embed Description: {clean_description}")
-            command_parts = clean_description.split()
+            if embed.description:
+                clean_description = remove_markdown(embed.description)
+                logging.info(f"Cleaned Embed Description: {clean_description}")
+                command_parts = clean_description.split()
 
             if '!admin' in command_parts:
                 logging.info(f"'!admin' command found in message: {message.content}")
@@ -262,7 +264,8 @@ class MyBot(commands.Bot):
         logging.info(f"Searching for player report: {reported_identifier}")
 
         reported_identifier_cleaned = remove_bracketed_content(reported_identifier)
-        potential_names = find_player_names(reported_identifier_cleaned)
+        potential_names = find_player_names(reported_identifier_cleaned, self.excluded_words)
+
 
         # Check if the player is on the server using get_players_fast method
         players_fast = await self.api_client.get_players_fast()
@@ -270,25 +273,38 @@ class MyBot(commands.Bot):
             logging.error("Failed to retrieve players list")
             return
 
+        # Laden des maximalen kombinierten Score-Schwellenwerts aus der Umgebungsvariable
+        max_combined_score_threshold = float(os.getenv('MAX_COMBINED_SCORE_THRESHOLD', 0.8))
+
         best_match = None
         best_player_data = None
-        best_score = 0
+        best_score = float('inf')
 
-        # Search for the best matching player name using Levenshtein and Jaro-Winkler
         for player in players_fast['result']:
-            player_name_words = player['name'].lower().split()
+            cleaned_player_name = remove_clantags(player['name'].lower())
+            player_name_words = cleaned_player_name.split()  # Verwenden Sie hier den bereinigten Namen
             for reported_word in potential_names:
                 for player_word in player_name_words:
                     levenshtein_score = levenshtein_distance(reported_word.lower(), player_word)
                     jaro_score = jaro_winkler(reported_word.lower(), player_word)
 
-                    # Combine the scores
                     if levenshtein_score <= max_levenshtein_distance or jaro_score >= jaro_winkler_threshold:
                         combined_score = levenshtein_score + (1 - jaro_score)
-                        if combined_score > best_score:
+                        logging.info(f"Scores for '{reported_word}' vs '{cleaned_player_name}': Levenshtein = {levenshtein_score}, Jaro = {jaro_score}, Combined = {combined_score}")
+
+                        if combined_score < best_score and combined_score <= max_combined_score_threshold:
                             best_score = combined_score
                             best_match = player['name']
                             best_player_data = player
+                            logging.info(f"New best match found: {best_match} with score {best_score}")
+
+
+        # Log-Ausgabe der besten Übereinstimmung am Ende der Schleife
+        if best_match:
+            logging.info(f"Best match within threshold found: {best_match}")
+        else:
+            logging.info("No matching player found within the threshold.")
+
 
         if best_match:
             # Retrieve detailed statistics for the best matching player

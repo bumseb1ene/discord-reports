@@ -1,0 +1,30 @@
+{
+    "exclude": [
+        "und", "oder", "aber", "denn", "sondern", "also", "schnell", "langsam", "vorsichtig", "aggressiv",
+        "die", "der", "das", "ein", "eine", "kein", "keine", "ist", "sind", "war", "an", "waren", "wird",
+        "würde", "habe", "haben", "hat", "hatte", "mehr", "können", "könnte", "könnt", "müssen", "müsste",
+        "dürfen", "dürfte", "sollten", "wollen", "wollt", "wollte", "mögen", "möchte", "sehr", "hier",
+        "dort", "wo", "wann", "wie", "was", "welcher", "welche", "welches", "warum", "weshalb", "bitte",
+        "danke", "vielleicht", "natürlich", "genau", "einfach", "bereits", "schon", "noch", "immer", "oft",
+        "selten", "manchmal", "nie", "niemals", "jederzeit", "momentan", "aktuell", "mich", "dich", "ihn",
+        "sie", "er", "teamkillt", "geteamkillt", "TK", "kicken", "kickt", "kick", "ban", "bannen", "bannt",
+        "ihn", "hq", "camping", "campen", "teamkill", "Teamkiller", "teamkilling", "cheater", "cheating",
+        "Hacker", "Hacking", "mg42", "sniper", "redet", "nicht", "mal", "diesen", "um", "weiter", "abzufarmen",
+        "garnison", "garni", "farmen", "absicht", "sonst", "geschlossenes", "locked", "solo", "squad",
+        "switchen", "hab", "mates", "drüben", "sl", "micro", "mikro", "mikrofon", "voice", "mic",
+        "Kommunikation", "komunikation", "tank", "panzer", "intentional", "test", "dreht", "komplett",
+        "spielt", "rollenspiele", "kommuniziert", "feind", "abbauen", "voip", "team", "überhaupt", "tot",
+        "server", "please", "and", "or", "but", "if", "then", "quickly", "slowly", "carefully", "aggressively",
+        "the", "a", "an", "no", "not", "is", "are", "was", "were", "will", "would", "have", "has", "had",
+        "more", "can", "could", "must", "should", "want", "like", "very", "here", "there", "where", "when",
+        "why", "how", "what", "which", "please", "thanks", "maybe", "of course", "exactly", "simply",
+        "already", "still", "often", "seldom", "sometimes", "never", "always", "currently", "I", "you",
+        "he", "she", "it", "teamkill", "cheater", "hacker", "sniper", "communication", "tank", "and",
+        "or", "but", "fast", "slow", "careful", "aggressive", "is", "are", "was", "have", "can", "must",
+        "the", "a", "an", "this", "that", "here", "there", "why", "how", "never", "always", "please", "thank",
+        "maybe", "exactly", "simply", "already", "still", "often", "seldom", "sometimes", "everytime",
+        "currently", "I", "you", "he", "she", "it", "teamkill", "cheater", "hacker", "sniper",
+        "communication", "tank", "intentional", "test", "play", "communicate", "enemy", "build", "voip",
+        "team", "dead", "server"
+    ]    
+}
