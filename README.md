@@ -121,6 +121,7 @@ Important: The bot may sometimes provide incorrect messages as the input depends
    API_TOKEN=
    ALLOWED_CHANNEL_ID=
    USER_LANG=de
+   MAX_COMBINED_SCORE_THRESHOLD=1.1
 
    API_BASE_URL_1=https://rcon1.example.com
    SERVER_NAME_1=Server 1 # Enter the "short_name" of your CRCON SETTINGS
