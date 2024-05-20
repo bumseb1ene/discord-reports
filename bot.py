@@ -146,7 +146,7 @@ class MyBot(commands.Bot):
 
                         # Accept 'commander' and 'kommandant' as trigger words
                         if "commander" in reported_parts or "kommandant" in reported_parts:
-                            unit_name = "command"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
+                            unit_name = "commmand"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
 
                         roles = ["officer", "spotter", "tankcommander", "armycommander"]
                         logging.info(f"Unit name: {unit_name}, Roles: {roles}")
