@@ -77,3 +77,87 @@ class TempBanButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         modal = TempBanModal(get_translation(self.user_lang, "temp_ban_modal_title"), self.api_client, self.steam_id_64, self.user_lang)
         await interaction.response.send_modal(modal)
+
+class MessagePlayerModal(discord.ui.Modal):
+    def __init__(self, title: str, api_client, steam_id_64, user_lang):
+        super().__init__(title=get_translation(user_lang, "message_player_modal_title"))
+        self.api_client = api_client
+        self.steam_id_64 = steam_id_64
+        self.user_lang = user_lang
+
+        self.message = discord.ui.TextInput(
+            label=get_translation(user_lang, "message_label"),
+            placeholder=get_translation(user_lang, "message_placeholder"),
+            style=discord.TextStyle.long,
+            required=True,
+            max_length=300
+        )
+        self.add_item(self.message)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        message_content = self.message.value
+        by = interaction.user.name
+
+        player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
+        if player_name:
+            success = await self.api_client.do_message_player(player_name, self.steam_id_64, message_content)
+
+            if success:
+                confirmation_message = get_translation(self.user_lang, "message_sent_successfully").format(player_name, message_content)
+            else:
+                confirmation_message = get_translation(self.user_lang, "error_sending_message")
+
+            await interaction.response.send_message(confirmation_message, ephemeral=True)
+
+class MessagePlayerButton(discord.ui.Button):
+    def __init__(self, label: str, custom_id: str, api_client, steam_id_64, user_lang):
+        super().__init__(style=discord.ButtonStyle.grey, label=label, custom_id=custom_id)
+        self.api_client = api_client
+        self.steam_id_64 = steam_id_64
+        self.user_lang = user_lang
+
+    async def callback(self, interaction: discord.Interaction):
+        modal = MessagePlayerModal(get_translation(self.user_lang, "message_player_modal_title"), self.api_client, self.steam_id_64, self.user_lang)
+        await interaction.response.send_modal(modal)
+
+class MessageReportedPlayerModal(discord.ui.Modal):
+    def __init__(self, title: str, api_client, steam_id_64, user_lang):
+        super().__init__(title=get_translation(user_lang, "message_reported_player_modal_title"))
+        self.api_client = api_client
+        self.steam_id_64 = steam_id_64
+        self.user_lang = user_lang
+
+        self.message = discord.ui.TextInput(
+            label=get_translation(user_lang, "message_label"),
+            placeholder=get_translation(user_lang, "message_placeholder"),
+            style=discord.TextStyle.long,
+            required=True,
+            max_length=300
+        )
+        self.add_item(self.message)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        message_content = self.message.value
+        by = interaction.user.name
+
+        player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
+        if player_name:
+            success = await self.api_client.do_message_player(player_name, self.steam_id_64, message_content)
+
+            if success:
+                confirmation_message = get_translation(self.user_lang, "message_sent_successfully").format(player_name, message_content)
+            else:
+                confirmation_message = get_translation(self.user_lang, "error_sending_message")
+
+            await interaction.response.send_message(confirmation_message, ephemeral=True)
+
+class MessageReportedPlayerButton(discord.ui.Button):
+    def __init__(self, label: str, custom_id: str, api_client, steam_id_64, user_lang):
+        super().__init__(style=discord.ButtonStyle.grey, label=label, custom_id=custom_id)
+        self.api_client = api_client
+        self.steam_id_64 = steam_id_64
+        self.user_lang = user_lang
+
+    async def callback(self, interaction: discord.Interaction):
+        modal = MessageReportedPlayerModal(get_translation(self.user_lang, "message_reported_player_modal_title"), self.api_client, self.steam_id_64, self.user_lang)
+        await interaction.response.send_modal(modal)

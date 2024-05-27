@@ -10,7 +10,7 @@ from api_client import APIClient  # Assuming this is the same as provided earlie
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags
-from modals import TempBanModal, TempBanButton
+from modals import TempBanModal, TempBanButton, MessagePlayerModal, MessagePlayerButton, MessageReportedPlayerModal, MessageReportedPlayerButton  # Importieren Sie das neue Modal und den Button
 from perma import PermaBanModal, PermaBanButton
 
 
@@ -146,7 +146,7 @@ class MyBot(commands.Bot):
 
                         # Accept 'commander' and 'kommandant' as trigger words
                         if "commander" in reported_parts or "kommandant" in reported_parts:
-                            unit_name = "commmand"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
+                            unit_name = "command"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
 
                         roles = ["officer", "spotter", "tankcommander", "armycommander"]
                         logging.info(f"Unit name: {unit_name}, Roles: {roles}")
@@ -219,6 +219,10 @@ class MyBot(commands.Bot):
                 button.callback = self.button_click  # Verknüpfen des Callbacks
                 view.add_item(button)
 
+                message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(player['name'])
+                message_reported_player_button = MessageReportedPlayerButton(label=message_reported_player_button_label, custom_id=f"message_reported_player_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
+                view.add_item(message_reported_player_button)
+
                 # Temp Ban-Button für den Spieler erstellen
                 temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(player['name'])
                 temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
@@ -228,6 +232,10 @@ class MyBot(commands.Bot):
                 perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(player['name'])
                 perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
                 view.add_item(perma_ban_button)
+
+                message_player_button_label = get_translation(user_lang, "message_player").format(player['name'])
+                message_player_button = MessagePlayerButton(label=message_player_button_label, custom_id=f"message_player_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
+                view.add_item(message_player_button)
 
                 # Erstellen des Buttons für unbegründeten Report
                 unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"), style=discord.ButtonStyle.grey, custom_id="unjustified_report")
@@ -349,6 +357,10 @@ class MyBot(commands.Bot):
                 view = View(timeout=None)
                 view.add_item(button)
 
+                message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(best_match)
+                message_reported_player_button = MessageReportedPlayerButton(label=message_reported_player_button_label, custom_id=f"message_reported_player_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
+                view.add_item(message_reported_player_button)
+
                 # Temp Ban-Button hinzufügen
                 temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(best_match)
                 temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
@@ -359,6 +371,9 @@ class MyBot(commands.Bot):
                 perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
                 view.add_item(perma_ban_button)
 
+                message_player_button_label = get_translation(user_lang, "message_player").format(best_match)
+                message_player_button = MessagePlayerButton(label=message_player_button_label, custom_id=f"message_player_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
+                view.add_item(message_player_button)
 
                 unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"), style=discord.ButtonStyle.grey, custom_id="unjustified_report")
                 unjustified_report_button.callback = self.unjustified_report_click
