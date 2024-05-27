@@ -12,12 +12,11 @@ from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags
 from modals import TempBanModal, TempBanButton, MessagePlayerModal, MessagePlayerButton, MessageReportedPlayerModal, MessageReportedPlayerButton  # Importieren Sie das neue Modal und den Button
 from perma import PermaBanModal, PermaBanButton
-
-
+import tempfile
 import logging
 
 # Konfiguration des Loggings
-logging.basicConfig(filename='bot_log.txt', level=logging.INFO,
+logging.basicConfig(filename='bot_log.txt', level=logging.DEBUG,  # Level auf DEBUG gesetzt
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
 # Loading environment variables
@@ -46,7 +45,6 @@ class MyBot(commands.Bot):
         self.api_base_url = None
         self.api_logged_in = False
         self.excluded_words = load_excluded_words('exclude_words.json')
-        
 
     async def login_to_api(self, api_base_url):
         if not self.api_logged_in or self.api_base_url != api_base_url:
@@ -71,10 +69,8 @@ class MyBot(commands.Bot):
                 return os.getenv(f"API_BASE_URL_{i}")
         return None  # Keine passende API-Basis-URL gefunden
 
-
     async def on_ready(self):
         print(f'{self.user} has logged in.')
-
 
     async def on_message(self, message):
         # Prüfen Sie zuerst, ob die Nachricht von Ihrem Bot oder von einem unerlaubten Kanal kommt.
@@ -146,7 +142,7 @@ class MyBot(commands.Bot):
 
                         # Accept 'commander' and 'kommandant' as trigger words
                         if "commander" in reported_parts or "kommandant" in reported_parts:
-                            unit_name = "command"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
+                            unit_name = "commmand"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
 
                         roles = ["officer", "spotter", "tankcommander", "armycommander"]
                         logging.info(f"Unit name: {unit_name}, Roles: {roles}")
@@ -165,7 +161,6 @@ class MyBot(commands.Bot):
                         logging.info("find_and_respond_player called.")
 
 
-
     async def find_and_respond_unit(self, team, unit_name, roles, message):
         player_data = await self.api_client.get_detailed_players()
 
@@ -173,62 +168,52 @@ class MyBot(commands.Bot):
             logging.error("Failed to retrieve player data or player data is incomplete.")
             return
 
-        # Sicherstellen, dass unit_name nicht None ist
         if unit_name is None:
             unit_name = ""
 
-        # Suchen nach einem Spieler, der den Kriterien entspricht
         matching_players = []
         for player_id, player_info in player_data['result']['players'].items():
-            # Verwenden von get() um None zu vermeiden und einen leeren String als Standardwert zu setzen
             player_unit_name = player_info.get('unit_name', "")
             if player_unit_name is None:
                 player_unit_name = ""
 
             if player_info['team'] and player_info['team'].lower() == team.lower() and \
-               player_unit_name.lower() == unit_name.lower() and \
-               player_info['role'].lower() in [role.lower() for role in roles]:
+            player_unit_name.lower() == unit_name.lower() and \
+            player_info['role'].lower() in [role.lower() for role in roles]:
                 player_details = {
                     "name": player_info['name'],
                     "level": player_info['level'],
                     "kills": player_info['kills'],
                     "deaths": player_info['deaths'],
-                    "steam_id_64": player_info['steam_id_64'],  # Steam-ID hinzufügen
+                    "steam_id_64": player_info['steam_id_64'],
                 }
                 matching_players.append(player_details)
 
-        # Erstellen des Embeds
         if matching_players:
             embed_title = get_translation(user_lang, "players_in_unit").format(unit_name, ', '.join(roles), team)
             embed = discord.Embed(title=embed_title, color=0xd85f0e)
             view = View(timeout=None)
             for player in matching_players:
-                # Abrufen des aktuellen Spielernamens
                 current_player_name = await self.api_client.get_player_by_steam_id(player['steam_id_64'])
-
-                # Abrufen der zusätzlichen Spielerdaten, einschließlich total_playtime_seconds
                 player_additional_data = await self.api_client.get_player_by_id(player['steam_id_64'])
                 total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
                 total_playtime_hours = total_playtime_seconds / 3600
 
-                # Erstellen eines Buttons
                 button_label = get_translation(user_lang, "kick_player").format(current_player_name) if current_player_name else get_translation(user_lang, "kick_player_generic")
                 button = Button(label=button_label, style=discord.ButtonStyle.green, custom_id=player['steam_id_64'])
-                button.steam_id_64 = player['steam_id_64']  # Speichern der Steam-ID im Button
-                button.player_name = current_player_name  # Speichern des Spielernamens im Button
-                button.callback = self.button_click  # Verknüpfen des Callbacks
+                button.steam_id_64 = player['steam_id_64']
+                button.player_name = current_player_name
+                button.callback = self.button_click
                 view.add_item(button)
 
                 message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(player['name'])
                 message_reported_player_button = MessageReportedPlayerButton(label=message_reported_player_button_label, custom_id=f"message_reported_player_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
                 view.add_item(message_reported_player_button)
 
-                # Temp Ban-Button für den Spieler erstellen
                 temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(player['name'])
                 temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
                 view.add_item(temp_ban_button)
 
-                # Perma Ban-Button für den Spieler erstellen
                 perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(player['name'])
                 perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
                 view.add_item(perma_ban_button)
@@ -237,9 +222,8 @@ class MyBot(commands.Bot):
                 message_player_button = MessagePlayerButton(label=message_player_button_label, custom_id=f"message_player_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
                 view.add_item(message_player_button)
 
-                # Erstellen des Buttons für unbegründeten Report
                 unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"), style=discord.ButtonStyle.grey, custom_id="unjustified_report")
-                unjustified_report_button.callback = self.unjustified_report_click  # Verknüpfen des neuen Callbacks
+                unjustified_report_button.callback = self.unjustified_report_click
                 view.add_item(unjustified_report_button)
 
                 no_action_button = Button(label=get_translation(user_lang, "wrong_player_reported"), style=discord.ButtonStyle.grey, custom_id="no_action")
@@ -253,12 +237,23 @@ class MyBot(commands.Bot):
                 embed.add_field(name=get_translation(user_lang, "deaths"), value=player["deaths"], inline=True)
                 embed.add_field(name=get_translation(user_lang, "steam_id"), value=player["steam_id_64"], inline=True)
 
-
-            # Senden der Antwort als Reaktion auf die ursprüngliche Nachricht
             response_message = await message.reply(embed=embed, view=view)
-
-            self.last_response_message_id = response_message.id  # Speichern der Nachrichten-ID
+            self.last_response_message_id = response_message.id
             await response_message.add_reaction('⏳')
+
+            # Fetch logs for the player and attach as a file
+            player_names = [player["name"] for player in matching_players]
+            logs = await self.api_client.get_structured_logs(60, None, None)  # Fetching logs without filtering by name
+            if logs and 'logs' in logs['result']:
+                log_messages = [f"{log['timestamp_ms']}: {log['action']} by {log['player']} - {log['message']}" for log in logs['result']['logs'] if log['player'] in player_names or log.get('player2') in player_names]
+                log_message = "\n".join(log_messages)
+                if log_message:
+                    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_log_file:
+                        temp_log_file.write(log_message)
+                        temp_log_file_path = temp_log_file.name
+                    await message.channel.send("Logs:", file=discord.File(temp_log_file_path))
+            else:
+                logging.debug("No logs found or error fetching logs")
         else:
             response = get_translation(user_lang, "no_players_found").format(unit_name, ', '.join(roles), team)
             await message.channel.send(response)
@@ -266,14 +261,12 @@ class MyBot(commands.Bot):
         await message.add_reaction('⏳')
         logging.info(get_translation(user_lang, "response_sent").format(unit_name, ', '.join(roles), team))
 
-
     async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=3, jaro_winkler_threshold=0.85):
         logging.info("find_and_respond_player function called")
         logging.info(f"Searching for player report: {reported_identifier}")
 
         reported_identifier_cleaned = remove_bracketed_content(reported_identifier)
         potential_names = find_player_names(reported_identifier_cleaned, self.excluded_words)
-
 
         # Check if the player is on the server using get_players_fast method
         players_fast = await self.api_client.get_players_fast()
@@ -296,7 +289,7 @@ class MyBot(commands.Bot):
                     levenshtein_score = levenshtein_distance(reported_word.lower(), player_word)
                     jaro_score = jaro_winkler(reported_word.lower(), player_word)
 
-                    if levenshtein_score <= max_levenshtein_distance or jaro_score >= jaro_winkler_threshold:
+                    if levenshtein_score <= max_combined_score_threshold or jaro_score >= jaro_winkler_threshold:
                         combined_score = levenshtein_score + (1 - jaro_score)
                         logging.info(f"Scores for '{reported_word}' vs '{cleaned_player_name}': Levenshtein = {levenshtein_score}, Jaro = {jaro_score}, Combined = {combined_score}")
 
@@ -306,13 +299,11 @@ class MyBot(commands.Bot):
                             best_player_data = player
                             logging.info(f"New best match found: {best_match} with score {best_score}")
 
-
         # Log-Ausgabe der besten Übereinstimmung am Ende der Schleife
         if best_match:
             logging.info(f"Best match within threshold found: {best_match}")
         else:
             logging.info("No matching player found within the threshold.")
-
 
         if best_match:
             # Retrieve detailed statistics for the best matching player
@@ -325,14 +316,13 @@ class MyBot(commands.Bot):
             player_stats = next((item for item in live_game_stats['result']['stats'] if item['steam_id_64'] == best_player_data['steam_id_64']), None)
 
             if player_stats:
-                # Hier verwenden Sie nun player_stats, um auf die spezifischen Statistiken des Spielers zuzugreifen
                 logging.info(get_translation(user_lang, "best_match_found").format(best_match))
                 player_additional_data = await self.api_client.get_player_by_id(best_player_data['steam_id_64'])
                 total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
                 total_playtime_hours = total_playtime_seconds / 3600
                 embed_title = get_translation(user_lang, "report_for_player").format(best_match)
                 embed = discord.Embed(title=embed_title, color=0xd85f0e)
-                    # Extrahieren des realname, wenn vorhanden
+                # Extrahieren des realname, wenn vorhanden
                 realname = None
                 if player_stats.get('steaminfo') and player_stats['steaminfo'].get('profile'):
                     realname = player_stats['steaminfo']['profile'].get('realname')
@@ -350,11 +340,28 @@ class MyBot(commands.Bot):
                 embed.add_field(name=get_translation(user_lang, "teamkills"), value=player_stats['teamkills'], inline=True)
                 embed.add_field(name=get_translation(user_lang, "teamkill_streak"), value=player_stats['teamkills_streak'], inline=True)
 
+                response_message = await message.reply(embed=embed)
+                self.last_response_message_id = response_message.id  # Speichern der Nachrichten-ID
+                await response_message.add_reaction('⏳')
+
+                # Fetch logs for the player and attach as a file
+                logs = await self.api_client.get_structured_logs(60, None, None)  # Fetching logs without filtering by name
+                if logs and 'logs' in logs['result']:
+                    log_messages = [f"{log['timestamp_ms']}: {log['action']} by {log['player']} - {log['message']}" for log in logs['result']['logs'] if log['player'] == best_match or log.get('player2') == best_match]
+                    log_message = "\n".join(log_messages)
+                    if log_message:
+                        with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_log_file:
+                            temp_log_file.write(log_message)
+                            temp_log_file_path = temp_log_file.name
+                        await message.channel.send("Logs:", file=discord.File(temp_log_file_path))
+                else:
+                    logging.debug("No logs found or error fetching logs")
+
                 # Erstellen und Hinzufügen der Buttons
+                view = View(timeout=None)
                 button_label = get_translation(user_lang, "kick_player").format(best_match)
                 button = Button(label=button_label, style=discord.ButtonStyle.green, custom_id=best_player_data['steam_id_64'])
                 button.callback = self.button_click
-                view = View(timeout=None)
                 view.add_item(button)
 
                 message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(best_match)
@@ -383,12 +390,11 @@ class MyBot(commands.Bot):
                 no_action_button.callback = self.no_action_click
                 view.add_item(no_action_button)
 
+                await response_message.edit(view=view)  # Editiere die ursprüngliche Antwort mit den Buttons
 
-                response_message = await message.reply(embed=embed, view=view)
-                self.last_response_message_id = response_message.id  # Speichern der Nachrichten-ID
-                await response_message.add_reaction('⏳')
         else:
             await message.channel.send(get_translation(user_lang, "no_matching_player_found"))
+
 
     async def button_click(self, interaction: discord.Interaction):
         steam_id_64 = interaction.data['custom_id']

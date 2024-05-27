@@ -192,3 +192,28 @@ class APIClient:
         except Exception as e:
             logging.error(f"Error sending message to player {player}: {e}")
             return None
+
+    async def get_structured_logs(self, since_min_ago, filter_action=None, filter_player=None):
+        url = f'{self.base_url}/api/get_structured_logs'
+        params = {
+            "since_min_ago": since_min_ago,
+        }
+        
+        # Nur Parameter hinzufügen, die nicht None sind
+        if filter_action is not None:
+            params["filter_action"] = filter_action
+        if filter_player is not None:
+            params["filter_player"] = filter_player
+
+        try:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url, params=params) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    return data
+        except Exception as e:
+            logging.error(f"Error fetching structured logs: {e}")
+            return None
+
+
+
