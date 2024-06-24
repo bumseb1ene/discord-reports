@@ -10,7 +10,7 @@ from api_client import APIClient  # Assuming this is the same as provided earlie
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags
-from modals import TempBanModal, TempBanButton, MessagePlayerModal, MessagePlayerButton, MessageReportedPlayerModal, MessageReportedPlayerButton  # Importieren Sie das neue Modal und den Button
+from modals import TempBanModal, TempBanButton, MessagePlayerModal, MessagePlayerButton, MessageReportedPlayerModal, MessageReportedPlayerButton, KickReasonSelect  # Importieren Sie das neue Modal und den Button
 from perma import PermaBanModal, PermaBanButton
 import tempfile
 import logging
@@ -400,30 +400,23 @@ class MyBot(commands.Bot):
             view.add_item(message_author_button)
             await message.reply(get_translation(user_lang, "no_player_found_message"), view=view)
 
-
-
     async def button_click(self, interaction: discord.Interaction):
         steam_id_64 = interaction.data['custom_id']
-        confirm_button_label = get_translation(user_lang, "confirm")
-        confirm_message = get_translation(user_lang, "are_you_sure_kick")
-        confirm_button = discord.ui.Button(label=confirm_button_label, style=discord.ButtonStyle.green, custom_id=f"confirm_{steam_id_64}")
-        confirm_button.callback = self.confirm_kick
+        original_message = interaction.message
         view = discord.ui.View(timeout=None)
-        view.add_item(confirm_button)
-        await interaction.response.send_message(confirm_message, view=view, ephemeral=True)
-        # Abrufen der ursprünglichen Nachricht, auf die reagiert werden soll
-        original_message = await interaction.channel.fetch_message(self.last_response_message_id)
-        # Führen Sie hier Aktionen mit original_message durch, z. B. Reaktionen hinzufügen/entfernen
+        select = KickReasonSelect(steam_id_64, user_lang, original_message)
+        view.add_item(select)
+        view.bot = self
+        await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)
 
-    async def confirm_kick(self, interaction: discord.Interaction):
-        steam_id_64 = interaction.data['custom_id'].split('_')[1]
+    async def confirm_kick(self, interaction: discord.Interaction, steam_id_64, reason):
         player_name = await self.api_client.get_player_by_steam_id(steam_id_64)
-        
+
         if player_name:
-            success = await self.api_client.do_kick(player_name, steam_id_64, user_lang)
+            success = await self.api_client.do_kick(player_name, steam_id_64, reason, user_lang)
             if success:
                 kicked_message = get_translation(user_lang, "player_kicked_successfully").format(player_name)
-                await interaction.response.send_message(kicked_message, ephemeral=True)
+                await interaction.followup.send(kicked_message, ephemeral=True)
 
                 players_data = await self.api_client.get_players_fast()
                 if players_data and 'result' in players_data:
@@ -435,25 +428,25 @@ class MyBot(commands.Bot):
                         steam_id_64 = author_player['steam_id_64']
                         message_to_author = get_translation(user_lang, "message_to_author_kicked").format(player_name)
                         await self.api_client.do_message_player(author_name, steam_id_64, message_to_author)
+                        try:
+                            author_user = await self.fetch_user(int(steam_id_64))
+                            await author_user.send(message_to_author)
+                        except Exception as e:
+                            logging.error(f"Error sending message to author: {e}")
                     else:
                         logging.error(get_translation(user_lang, "author_not_found"))
                 else:
-                    logging.error("Failed to retrieve players list or 'result' not in players_data.")
+                    logging.error("Failed to retrieve players list or 'result' not in players data.")
             else:
-                await interaction.response.send_message(get_translation(user_lang, "error_kicking_player"), ephemeral=True)
+                await interaction.followup.send(get_translation(user_lang, "error_kicking_player"), ephemeral=True)
         else:
-            await interaction.response.send_message(get_translation(user_lang, "player_name_not_retrieved"), ephemeral=True)
+            await interaction.followup.send(get_translation(user_lang, "player_name_not_retrieved"), ephemeral=True)
 
         try:
-            original_message = await interaction.channel.fetch_message(self.last_response_message_id)
+            original_message = interaction.message
             await original_message.clear_reaction('⏳')
             await original_message.add_reaction('✅')
-            new_view = discord.ui.View(timeout=None)
-            for item in original_message.components:
-                if isinstance(item, discord.ui.Button):
-                    new_button = discord.ui.Button(style=item.style, label=item.label, disabled=True)
-                    new_view.add_item(new_button)
-            await original_message.edit(view=new_view)
+            await original_message.edit(view=None)  # Entferne die View (die das Dropdown enthält)
         except discord.NotFound:
             logging.error(get_translation(user_lang, "message_not_found_or_uneditable"))
         except Exception as e:

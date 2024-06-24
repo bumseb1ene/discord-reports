@@ -32,18 +32,13 @@ class APIClient:
     async def get_player_data(self, steam_id_64):
         url = f'{self.base_url}/api/get_live_game_stats'
         try:
-            # Verwenden von async with zur Erstellung der ClientSession
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
                     if response.status != 200:
-                        # Du kannst hier entscheiden, ob du eine Fehlermeldung ausgeben möchtest
                         return None
-
-                    return await response.json()  # Return JSON response if successful
+                    return await response.json()
         except Exception as e:
-            # Auch hier kannst du entscheiden, ob du eine Fehlermeldung ausgeben möchtest
             return None
-
 
     async def get_detailed_players(self):
         url = f'{self.base_url}/api/get_detailed_players'
@@ -56,9 +51,8 @@ class APIClient:
             logging.error(f"Error fetching detailed players data: {e}")
             return None
 
-    async def do_kick(self, player, steam_id_64, user_lang):
+    async def do_kick(self, player, steam_id_64, reason, user_lang):
         url = f'{self.base_url}/api/do_kick'
-        reason = get_translation(user_lang, "kick_reason")
         data = {
             'player': player,
             'reason': reason,
@@ -89,14 +83,12 @@ class APIClient:
                     response.raise_for_status()
                     data = await response.json()
                     if data and 'result' in data and 'names' in data['result']:
-                        first_name_record = data['result']['names'][0]  # Änderung hier
+                        first_name_record = data['result']['names'][0]
                         return first_name_record['name']
                     return None
         except Exception as e:
             logging.error(f"Error fetching player data for Steam ID {steam_id_64}: {e}")
             return None
-
-
 
     async def get_player_by_id(self, steam_id_64):
         url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
@@ -112,8 +104,6 @@ class APIClient:
             logging.error(f"Error fetching player data for Steam ID {steam_id_64}: {e}")
             return None
 
-
-
     async def get_players_fast(self):
         url = f'{self.base_url}/api/get_players_fast'
         try:
@@ -125,9 +115,7 @@ class APIClient:
             logging.error(f"Error fetching fast players data: {e}")
             return None
 
-
     async def do_temp_ban(self, player, steam_id_64, duration_hours, reason, by):
-        # Überprüfen, ob eine Sitzung existiert. Wenn nicht, erstellen Sie eine.
         if not self.session:
             await self.create_session()
 
@@ -143,7 +131,6 @@ class APIClient:
         try:
             async with self.session.post(url, json=data) as response:
                 if response.status != 200:
-                    # Logging der Fehlermeldung
                     response_text = await response.text()
                     logging.error(f"Fehler beim Anwenden des temporären Bans: {response.status}, Antwort: {response_text}")
                     return False
@@ -151,9 +138,8 @@ class APIClient:
         except Exception as e:
             logging.error(f"Fehler beim Senden der Temp-Ban-Anfrage: {e}")
             return False
-            
+
     async def do_perma_ban(self, player, steam_id_64, reason, by):
-        # Überprüfen, ob eine Sitzung existiert. Wenn nicht, erstellen Sie eine.
         if not self.session:
             await self.create_session()
 
@@ -168,7 +154,6 @@ class APIClient:
         try:
             async with self.session.post(url, json=data) as response:
                 if response.status != 200:
-                    # Logging der Fehlermeldung
                     response_text = await response.text()
                     logging.error(f"Fehler beim Anwenden des permanenten Bans: {response.status}, Antwort: {response_text}")
                     return False
@@ -198,8 +183,7 @@ class APIClient:
         params = {
             "since_min_ago": since_min_ago,
         }
-        
-        # Nur Parameter hinzufügen, die nicht None sind
+
         if filter_action is not None:
             params["filter_action"] = filter_action
         if filter_player is not None:
@@ -214,6 +198,3 @@ class APIClient:
         except Exception as e:
             logging.error(f"Error fetching structured logs: {e}")
             return None
-
-
-

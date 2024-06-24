@@ -78,7 +78,14 @@
         "error_sending_message": "Error sending message to the player",
         "message_player": "☎️ Message reporter",
         "message_reported_player_modal_title": "Send a message to the reported player",
-        "message_reported_player": "⚠️ Warn"
+        "message_reported_player": "⚠️ Warn",
+        "no_communication_voice_chat": "No communication in voice chat",
+        "solo_squads_not_allowed": "Solo squads are not allowed",
+        "teamkills_not_tolerated": "Teamkills are not tolerated",
+        "trolls_not_tolerated": "Trolls are not tolerated",
+        "insults_not_tolerated": "Insults are not tolerated",
+        "cheating": "Cheating is not tolerated",
+        "spamming": "Spamming is not tolerated"
     
     },
     "de": {
@@ -160,6 +167,13 @@
         "error_sending_message": "Fehler beim Senden der Nachricht",
         "message_player": "☎️ Rücksprache halten",
         "message_reported_player_modal_title": "Sende eine Verwarnung",
-        "message_reported_player": "⚠️ Verwarnen"
+        "message_reported_player": "⚠️ Verwarnen",
+        "no_communication_voice_chat": "Keine Kommunikation im Voicechat",
+        "solo_squads_not_allowed": "Geschlossene Solo-Squads sind nicht erlaubt",
+        "teamkills_not_tolerated": "Teamkills werden nicht toleriert",
+        "trolls_not_tolerated": "Trolls werden nicht toleriert",
+        "insults_not_tolerated": "Beleidigungen werden nicht toleriert",
+        "cheating": "Cheating wird nicht toleriert",
+        "spamming": "Spamming wird nicht toleriert"
     }
 }

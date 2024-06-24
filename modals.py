@@ -1,4 +1,5 @@
 import discord
+from discord.ui import Select  # Import der Select Klasse
 from helpers import get_translation, get_author_name, set_author_name
 
 class TempBanModal(discord.ui.Modal):
@@ -179,3 +180,51 @@ class MessageReportedPlayerButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         modal = MessageReportedPlayerModal(get_translation(self.user_lang, "message_reported_player_modal_title"), self.api_client, self.steam_id_64, self.user_lang)
         await interaction.response.send_modal(modal)
+
+class KickReasonSelect(Select):
+    def __init__(self, steam_id_64, user_lang, original_message):
+        options = [
+            discord.SelectOption(label=get_translation(user_lang, "no_communication_voice_chat"), value=get_translation(user_lang, "no_communication_voice_chat")),
+            discord.SelectOption(label=get_translation(user_lang, "solo_squads_not_allowed"), value=get_translation(user_lang, "solo_squads_not_allowed")),
+            discord.SelectOption(label=get_translation(user_lang, "teamkills_not_tolerated"), value=get_translation(user_lang, "teamkills_not_tolerated")),
+            discord.SelectOption(label=get_translation(user_lang, "trolls_not_tolerated"), value=get_translation(user_lang, "trolls_not_tolerated")),
+            discord.SelectOption(label=get_translation(user_lang, "insults_not_tolerated"), value=get_translation(user_lang, "insults_not_tolerated")),
+            discord.SelectOption(label=get_translation(user_lang, "cheating"), value=get_translation(user_lang, "cheating")),
+            discord.SelectOption(label=get_translation(user_lang, "spamming"), value=get_translation(user_lang, "spamming")),
+        ]
+        super().__init__(placeholder=get_translation(user_lang, "select_kick_reason"), min_values=1, max_values=1, options=options)
+        self.steam_id_64 = steam_id_64
+        self.user_lang = user_lang
+        self.original_message = original_message
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_reason = self.values[0]
+
+        await interaction.response.send_message(f"Gewählter Grund: {selected_reason}", ephemeral=True)
+
+        # Deaktiviere alle Items in der View
+        for item in self.view.children:
+            item.disabled = True
+
+        # Bearbeite die Originalnachricht, um die View zu entfernen
+        await self.original_message.edit(view=None)
+
+        # Füge das grüne Häkchen als Reaktion hinzu und entferne die Sanduhr
+        await self.original_message.add_reaction('✅')
+        await self.original_message.clear_reaction('⏳')
+
+        # Bestätige den Kick
+        await self.view.bot.confirm_kick(interaction, self.steam_id_64, selected_reason)
+
+
+
+
+
+
+
+
+
+
+
+
+
