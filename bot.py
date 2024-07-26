@@ -24,10 +24,10 @@ load_dotenv()
 
 # Discord Bot configuration
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-API_TOKEN = os.getenv('API_TOKEN')
+API_TOKEN = os.getenv('RCON_API_TOKEN')
 ALLOWED_CHANNEL_ID = int(os.getenv('ALLOWED_CHANNEL_ID'))  # Assuming channel ID is an integer
-USERNAME = os.getenv('USERNAME')
-PASSWORD = os.getenv('PASSWORD')
+USERNAME = os.getenv('RCON_USERNAME')
+PASSWORD = os.getenv('RCON_PASSWORD')
 MAX_SERVERS = int(os.getenv('MAX_SERVERS'))
 user_lang = os.getenv('USER_LANG', 'en')  # Standardwert auf 'en' gesetzt
 
