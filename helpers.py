@@ -29,7 +29,7 @@ def find_player_names(text, excluded_words):
     return potential_names
 
 # Load the language file
-with open('languages.json', 'r') as file:
+with open('languages.json', 'r', encoding="utf8") as file:
     languages = json.load(file)
 
 def get_translation(lang, key):
