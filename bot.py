@@ -3,17 +3,17 @@ import os
 import re
 import discord
 from discord.ext import commands
-from discord.ui import View, Button
+from discord.ui import View
 
 from dotenv import load_dotenv
 from api_client import APIClient  # Assuming this is the same as provided earlier
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags
-from modals import TempBanModal, TempBanButton, MessagePlayerModal, MessagePlayerButton, MessageReportedPlayerModal, MessageReportedPlayerButton, KickReasonSelect  # Importieren Sie das neue Modal und den Button
-from perma import PermaBanModal, PermaBanButton
+from modals import MessagePlayerButton, KickReasonSelect  # Importieren Sie das neue Modal und den Button
 import tempfile
 import logging
+from messages import unitreportembed, unitreportview, playerreportembed, playerreportview
 
 # Konfiguration des Loggings
 logging.basicConfig(filename='bot_log.txt', level=logging.DEBUG,  # Level auf DEBUG gesetzt
@@ -171,7 +171,7 @@ class MyBot(commands.Bot):
         if unit_name is None:
             unit_name = ""
 
-        matching_players = []
+        matching_player = []
         for player_id, player_info in player_data['result']['players'].items():
             player_unit_name = player_info.get('unit_name', "")
             if player_unit_name is None:
@@ -187,65 +187,20 @@ class MyBot(commands.Bot):
                     "deaths": player_info['deaths'],
                     "steam_id_64": player_info['steam_id_64'],
                 }
-                matching_players.append(player_details)
+                matching_player = player_details
+                break
 
-        if matching_players:
-            embed_title = get_translation(user_lang, "players_in_unit").format(unit_name, ', '.join(roles), team)
-            embed = discord.Embed(title=embed_title, color=0xd85f0e)
-            view = View(timeout=None)
-            for player in matching_players:
-                current_player_name = await self.api_client.get_player_by_steam_id(player['steam_id_64'])
-                player_additional_data = await self.api_client.get_player_by_id(player['steam_id_64'])
-                total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
-                total_playtime_hours = total_playtime_seconds / 3600
-
-                button_label = get_translation(user_lang, "kick_player").format(current_player_name) if current_player_name else get_translation(user_lang, "kick_player_generic")
-                button = Button(label=button_label, style=discord.ButtonStyle.green, custom_id=player['steam_id_64'])
-                button.steam_id_64 = player['steam_id_64']
-                button.player_name = current_player_name
-                button.callback = self.button_click
-                view.add_item(button)
-
-                message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(player['name'])
-                message_reported_player_button = MessageReportedPlayerButton(label=message_reported_player_button_label, custom_id=f"message_reported_player_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
-                view.add_item(message_reported_player_button)
-
-                temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(player['name'])
-                temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
-                view.add_item(temp_ban_button)
-
-                perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(player['name'])
-                perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
-                view.add_item(perma_ban_button)
-
-                message_player_button_label = get_translation(user_lang, "message_player").format(player['name'])
-                message_player_button = MessagePlayerButton(label=message_player_button_label, custom_id=f"message_player_{player['steam_id_64']}", api_client=self.api_client, steam_id_64=player['steam_id_64'], user_lang=user_lang)
-                view.add_item(message_player_button)
-
-                unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"), style=discord.ButtonStyle.grey, custom_id="unjustified_report")
-                unjustified_report_button.callback = self.unjustified_report_click
-                view.add_item(unjustified_report_button)
-
-                no_action_button = Button(label=get_translation(user_lang, "wrong_player_reported"), style=discord.ButtonStyle.grey, custom_id="no_action")
-                no_action_button.callback = self.no_action_click
-                view.add_item(no_action_button)
-
-                embed.add_field(name=get_translation(user_lang, "name"), value=player["name"], inline=True)
-                embed.add_field(name=get_translation(user_lang, "level"), value=player["level"], inline=True)
-                embed.add_field(name=get_translation(user_lang, "total_playtime"), value=f"{total_playtime_hours:.2f} " + get_translation(user_lang, "hours"), inline=True)
-                embed.add_field(name=get_translation(user_lang, "kills"), value=player["kills"], inline=True)
-                embed.add_field(name=get_translation(user_lang, "deaths"), value=player["deaths"], inline=True)
-                embed.add_field(name=get_translation(user_lang, "steam_id"), value=player["steam_id_64"], inline=True)
-
+        if matching_player:
+            embed = await unitreportembed(self, user_lang, unit_name, roles, team, matching_player)
+            view = await unitreportview(self, user_lang, unit_name, roles, team, matching_player)
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
-            await response_message.add_reaction('⏳')
 
             # Fetch logs for the player and attach as a file
-            player_names = [player["name"] for player in matching_players]
+            player_name = matching_player["name"]
             logs = await self.api_client.get_structured_logs(60, None, None)  # Fetching logs without filtering by name
             if logs and 'logs' in logs['result']:
-                log_messages = [f"{log['timestamp_ms']}: {log['action']} by {log['player']} - {log['message']}" for log in logs['result']['logs'] if log['player'] in player_names or log.get('player2') in player_names]
+                log_messages = [f"{log['timestamp_ms']}: {log['action']} by {log['player']} - {log['message']}" for log in logs['result']['logs'] if log['player'] == player_name or log.get('player2') == player_name]
                 log_message = "\n".join(log_messages)
                 if log_message:
                     with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_log_file:
@@ -319,25 +274,7 @@ class MyBot(commands.Bot):
                 player_additional_data = await self.api_client.get_player_by_id(best_player_data['steam_id_64'])
                 total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
                 total_playtime_hours = total_playtime_seconds / 3600
-                embed_title = get_translation(user_lang, "report_for_player").format(best_match)
-                embed = discord.Embed(title=embed_title, color=0xd85f0e)
-
-                realname = None
-                if player_stats.get('steaminfo') and player_stats['steaminfo'].get('profile'):
-                    realname = player_stats['steaminfo']['profile'].get('realname')
-
-                if realname:
-                    embed.add_field(name=get_translation(user_lang, "realname"), value=realname, inline=True)
-                embed.add_field(name=get_translation(user_lang, "information"), value=get_translation(user_lang, "check_report_match"), inline=False)
-                embed.add_field(name=get_translation(user_lang, "total_playtime"), value=f"{total_playtime_hours:.2f} " + get_translation(user_lang, "hours"), inline=True)
-                embed.add_field(name="Steam-ID", value=best_player_data['steam_id_64'], inline=True)
-                embed.add_field(name=get_translation(user_lang, "kills"), value=player_stats['kills'], inline=True)
-                embed.add_field(name=get_translation(user_lang, "kill_streak"), value=player_stats['kills_streak'], inline=True)
-                embed.add_field(name=get_translation(user_lang, "kill_death_ratio"), value=player_stats['kill_death_ratio'], inline=True)
-                embed.add_field(name=get_translation(user_lang, "kills_per_minute"), value=player_stats['kills_per_minute'], inline=True)
-                embed.add_field(name=get_translation(user_lang, "deaths"), value=player_stats['deaths'], inline=True)
-                embed.add_field(name=get_translation(user_lang, "teamkills"), value=player_stats['teamkills'], inline=True)
-                embed.add_field(name=get_translation(user_lang, "teamkill_streak"), value=player_stats['teamkills_streak'], inline=True)
+                embed = await playerreportembed(user_lang, best_match, player_stats, total_playtime_hours, best_player_data)
 
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
@@ -355,37 +292,9 @@ class MyBot(commands.Bot):
                 else:
                     logging.debug("No logs found or error fetching logs")
 
-                view = View(timeout=None)
-                button_label = get_translation(user_lang, "kick_player").format(best_match)
-                button = Button(label=button_label, style=discord.ButtonStyle.green, custom_id=best_player_data['steam_id_64'])
-                button.callback = self.button_click
-                view.add_item(button)
 
-                message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(best_match)
-                message_reported_player_button = MessageReportedPlayerButton(label=message_reported_player_button_label, custom_id=f"message_reported_player_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
-                view.add_item(message_reported_player_button)
 
-                temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(best_match)
-                temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
-                view.add_item(temp_ban_button)
-
-                perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(best_match)
-                perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
-                view.add_item(perma_ban_button)
-
-                message_player_button_label = get_translation(user_lang, "message_player").format(best_match)
-                message_player_button = MessagePlayerButton(label=message_player_button_label, custom_id=f"message_player_{best_player_data['steam_id_64']}", api_client=self.api_client, steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
-                view.add_item(message_player_button)
-
-                unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"), style=discord.ButtonStyle.grey, custom_id="unjustified_report")
-                unjustified_report_button.callback = self.unjustified_report_click
-                view.add_item(unjustified_report_button)
-
-                no_action_button = Button(label=get_translation(user_lang, "wrong_player_reported"), style=discord.ButtonStyle.grey, custom_id="no_action")
-                no_action_button.callback = self.no_action_click
-                view.add_item(no_action_button)
-
-                await response_message.edit(view=view)
+                await response_message.edit(view=playerreportview(self, user_lang, best_match, best_player_data))
             else:
                 await message.channel.send(get_translation(user_lang, "no_matching_player_found"))
         else:
