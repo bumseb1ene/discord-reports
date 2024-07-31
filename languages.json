@@ -85,8 +85,8 @@
         "trolls_not_tolerated": "Trolls are not tolerated",
         "insults_not_tolerated": "Insults are not tolerated",
         "cheating": "Cheating is not tolerated",
-        "spamming": "Spamming is not tolerated"
-    
+        "spamming": "Spamming is not tolerated",
+        "logbook": "Logbook"
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -174,6 +174,8 @@
         "trolls_not_tolerated": "Trolls werden nicht toleriert",
         "insults_not_tolerated": "Beleidigungen werden nicht toleriert",
         "cheating": "Cheating wird nicht toleriert",
-        "spamming": "Spamming wird nicht toleriert"
+        "spamming": "Spamming wird nicht toleriert",
+        "logbook": "Logbuch",
+        "log_tempban": "{}: {} bannte {} für {} Stunden. Grund: {}"
     }
 }

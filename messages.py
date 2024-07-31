@@ -2,14 +2,15 @@ import discord
 from discord.ext import commands
 from discord.ui import View, Button
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags
-from modals import TempBanModal, TempBanButton, MessagePlayerModal, MessagePlayerButton, MessageReportedPlayerModal, MessageReportedPlayerButton, KickReasonSelect  # Importieren Sie das neue Modal und den Button
+from modals import TempBanButton, MessagePlayerModal, MessagePlayerButton, MessageReportedPlayerModal, MessageReportedPlayerButton, KickReasonSelect  # Importieren Sie das neue Modal und den Button
 from perma import PermaBanModal, PermaBanButton
+import os
 
-async def unitreportembed(self, user_lang, unit_name, roles, team, player):
+
+async def unitreportembed(player_additional_data, unit_name, roles, team, player, logbookmessage = False):
+    user_lang = os.getenv('USER_LANG', 'en')
     embed_title = get_translation(user_lang, "players_in_unit").format(unit_name, ', '.join(roles), team)
     embed = discord.Embed(title=embed_title, color=0xd85f0e)
-
-    player_additional_data = await self.api_client.get_player_by_id(player['steam_id_64'])
     total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
     total_playtime_hours = total_playtime_seconds / 3600
     embed.add_field(name=get_translation(user_lang, "name"), value=player["name"], inline=True)
@@ -19,9 +20,11 @@ async def unitreportembed(self, user_lang, unit_name, roles, team, player):
     embed.add_field(name=get_translation(user_lang, "kills"), value=player["kills"], inline=True)
     embed.add_field(name=get_translation(user_lang, "deaths"), value=player["deaths"], inline=True)
     embed.add_field(name=get_translation(user_lang, "steam_id"), value=player["steam_id_64"], inline=True)
+    if logbookmessage != False:
+        embed.add_field(name=get_translation(user_lang, "logbook"), value=logbookmessage)
     return embed
 
-async def unitreportview(self, user_lang, unit_name, roles, team, player):
+async def unitreportview(self, user_lang, unit_name, roles, team, player, player_additional_data):
     view = View(timeout=None)
     current_player_name = await self.api_client.get_player_by_steam_id(player['steam_id_64'])
     button_label = get_translation(user_lang, "kick_player").format(
@@ -42,7 +45,7 @@ async def unitreportview(self, user_lang, unit_name, roles, team, player):
     temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(player['name'])
     temp_ban_button = TempBanButton(label=temp_ban_button_label, custom_id=f"temp_ban_{player['steam_id_64']}",
                                     api_client=self.api_client, steam_id_64=player['steam_id_64'],
-                                    user_lang=user_lang)
+                                    user_lang=user_lang, report_type="unit", player_additional_data=player_additional_data)
     view.add_item(temp_ban_button)
     perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(player['name'])
     perma_ban_button = PermaBanButton(label=perma_ban_button_label, custom_id=f"perma_ban_{player['steam_id_64']}",
@@ -114,7 +117,7 @@ async def playerreportview(self, user_lang, best_match, best_player_data):
     temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(best_match)
     temp_ban_button = TempBanButton(label=temp_ban_button_label,
                                     custom_id=f"temp_ban_{best_player_data['steam_id_64']}", api_client=self.api_client,
-                                    steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang)
+                                    steam_id_64=best_player_data['steam_id_64'], user_lang=user_lang, report_type="player", player_additional_data=False)
     view.add_item(temp_ban_button)
 
     perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(best_match)

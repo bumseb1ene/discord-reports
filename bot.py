@@ -191,8 +191,9 @@ class MyBot(commands.Bot):
                 break
 
         if matching_player:
-            embed = await unitreportembed(self, user_lang, unit_name, roles, team, matching_player)
-            view = await unitreportview(self, user_lang, unit_name, roles, team, matching_player)
+            player_additional_data= await self.api_client.get_player_by_id(matching_player['steam_id_64'])
+            embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
+            view = await unitreportview(self, user_lang, unit_name, roles, team, matching_player, player_additional_data)
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
 
@@ -278,7 +279,6 @@ class MyBot(commands.Bot):
 
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
-                await response_message.add_reaction('⏳')
 
                 logs = await self.api_client.get_structured_logs(60, None, None)
                 if logs and 'logs' in logs['result']:
@@ -294,7 +294,7 @@ class MyBot(commands.Bot):
 
 
 
-                await response_message.edit(view=playerreportview(self, user_lang, best_match, best_player_data))
+                await response_message.edit(view=await playerreportview(self, user_lang, best_match, best_player_data))
             else:
                 await message.channel.send(get_translation(user_lang, "no_matching_player_found"))
         else:
@@ -353,7 +353,6 @@ class MyBot(commands.Bot):
 
         try:
             original_message = interaction.message
-            await original_message.clear_reaction('⏳')
             await original_message.add_reaction('✅')
             await original_message.edit(view=None)  # Entferne die View (die das Dropdown enthält)
         except discord.NotFound:
