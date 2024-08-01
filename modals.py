@@ -61,11 +61,12 @@ class TempBanModal(discord.ui.Modal):
                     name = player_name
                 else:
                     name = self.steam_id_64
-                newembed = original_message.embeds[0]
-                newembed.add_field(name=get_translation(self.user_lang, "logbook"), value=get_translation(self.user_lang, "log_tempban").format(actiontime, modname, name, duration_hours, reason))
-                await original_message.clear_reaction('⏳')
+                new_embed = original_message.embeds[0]
+                new_embed.add_field(name=get_translation(self.user_lang, "logbook"), value=get_translation(self.user_lang, "log_tempban").format(actiontime, modname, name, duration_hours, reason))
                 await original_message.add_reaction('✅')
-                await original_message.edit(view=None, embed=newembed)
+                await original_message.edit(view=None, embed=new_embed)
+                reportmessage = await original_message.channel.fetch_message(original_message.reference.message_id)
+                await reportmessage.add_reaction('✅')
             except discord.NotFound:
                 logging.error("Original message not found or uneditable.")
             except Exception as e:
