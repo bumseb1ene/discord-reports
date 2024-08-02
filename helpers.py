@@ -67,9 +67,9 @@ async def add_modlog(interaction, logmessage, steam_id_64, user_lang, api_client
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d.%m.%Y %H:%M:%S:")
     logging.info(date_time + logmessage) # Log in File
-    api_client.post_player_comment(steam_id_64, logmessage)
+    await api_client.post_player_comment(steam_id_64, logmessage)
     original_message = await interaction.channel.fetch_message(interaction.message.id)
-    actiontime = "<t:" + str(int(time.time())) + ":f>: " + logmessage
+    actiontime = "<t:" + str(int(time.time())) + ":f>: "
     logmessage = actiontime + logmessage
     new_embed = original_message.embeds[0]
     new_embed.add_field(name=get_translation(user_lang, "logbook"),value=logmessage)

@@ -25,10 +25,10 @@ class PermaBanModal(discord.ui.Modal):
         player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
         if player_name:
             success = await self.api_client.do_perma_ban(player_name, self.steam_id_64, reason, by)
-
+            # TODO: Blacklist
             if success:
                 confirmation_message = get_translation(self.user_lang, "player_perma_banned_successfully").format(player_name, reason)
-                players_data = await self.api_client.get_players_fast()
+                players_data = await self.api_client.get_players()
                 if players_data and 'result' in players_data:
                     players_list = players_data['result']
                     author_name = get_author_name()

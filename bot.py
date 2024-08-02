@@ -233,7 +233,7 @@ class MyBot(commands.Bot):
         reported_identifier_cleaned = remove_bracketed_content(reported_identifier)
         potential_names = find_player_names(reported_identifier_cleaned, self.excluded_words)
 
-        players_fast = await self.api_client.get_players_fast()
+        players_fast = await self.api_client.get_players()
         if not players_fast or 'result' not in players_fast:
             logging.error("Failed to retrieve players list")
             return
@@ -327,7 +327,7 @@ class MyBot(commands.Bot):
                 kicked_message = get_translation(user_lang, "player_kicked_successfully").format(player_name)
                 await interaction.followup.send(kicked_message, ephemeral=True)
 
-                players_data = await self.api_client.get_players_fast()
+                players_data = await self.api_client.get_players()
                 if players_data and 'result' in players_data:
                     players_list = players_data['result']
                     author_name = get_author_name()
@@ -379,7 +379,7 @@ class MyBot(commands.Bot):
         author_name = get_author_name()
         print(f"Using extracted author name: {author_name}")
 
-        players_data = await self.api_client.get_players_fast()
+        players_data = await self.api_client.get_players()
         if players_data and 'result' in players_data:
             players_list = players_data['result']
             player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
