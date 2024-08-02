@@ -1,6 +1,9 @@
 # In helpers.py
 import re
 import json
+from datetime import datetime
+import time
+import logging
 
 def remove_markdown(content):
     # Entfernt Discord Markdown-Formatierung (fett, kursiv, unterstrichen, durchgestrichen, Inline-Code)
@@ -59,4 +62,39 @@ def remove_clantags(name):
     name_cleaned = re.sub(r"[^\w\s]", "", name_without_clantags, flags=re.UNICODE)
     return name_cleaned.strip()
 
+# Ads Modlog and Clears Buttons
+async def add_modlog(interaction, logmessage, steam_id_64, user_lang, api_client):
+    now = datetime.now()  # current date and time
+    date_time = now.strftime("%d.%m.%Y %H:%M:%S:")
+    logging.info(date_time + logmessage) # Log in File
+    api_client.post_player_comment(steam_id_64)
+    original_message = await interaction.channel.fetch_message(interaction.message.id)
+    actiontime = "<t:" + str(int(time.time())) + ":f>: " + logmessage
+    logmessage = actiontime + logmessage
+    new_embed = original_message.embeds[0]
+    new_embed.add_field(name=get_translation(user_lang, "logbook"),value=logmessage)
+    await original_message.edit(view=None, embed=new_embed)
 
+async def only_remove_buttons(interaction):
+    original_message = await interaction.channel.fetch_message(interaction.message.id)
+    await original_message.edit(view=None)
+
+async def add_check_to_messages(interaction):
+    original_message = await interaction.channel.fetch_message(interaction.message.id)
+    await original_message.add_reaction('✅')
+    reportmessage = await original_message.channel.fetch_message(original_message.reference.message_id)
+    await reportmessage.add_reaction('✅')
+
+async def add_warning_to_messages(interaction):
+    original_message = await interaction.channel.fetch_message(interaction.message.id)
+    await original_message.add_reaction('⚠️')
+    reportmessage = await original_message.channel.fetch_message(original_message.reference.message_id)
+    await reportmessage.add_reaction('⚠️')
+
+async def get_playername(self):
+    player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
+    if player_name:
+        name = player_name
+    else:
+        name = self.steam_id_64
+    return name

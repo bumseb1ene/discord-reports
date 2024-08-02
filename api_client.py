@@ -198,3 +198,18 @@ class APIClient:
         except Exception as e:
             logging.error(f"Error fetching structured logs: {e}")
             return None
+
+    async def post_player_comment(self, steam_id_64, comment):
+        url = f'{self.base_url}/api/post_player_comment'
+        data = {
+            "steam_id_64": steam_id_64,
+            "comment": comment
+        }
+        try:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.post(url, json=data) as response:
+                    response.raise_for_status()
+                    return await response.json()
+        except Exception as e:
+            logging.error(f"Error posting comment '{comment}' for player {steam_id_64}: {e}")
+            return None

@@ -1,5 +1,6 @@
 import discord
-from helpers import get_translation, get_author_name
+import logging
+from helpers import get_translation, get_author_name, add_modlog, add_check_to_messages, get_playername, add_warning_to_messages, only_remove_buttons
 
 class PermaBanModal(discord.ui.Modal):
     def __init__(self, title: str, api_client, steam_id_64, user_lang):
@@ -38,20 +39,19 @@ class PermaBanModal(discord.ui.Modal):
                         await self.api_client.do_message_player(author_name, steam_id_64, message_to_author)
             else:
                 confirmation_message = get_translation(self.user_lang, "error_perma_banning_player")
+                await interaction.response.send_message(confirmation_message, ephemeral=True)
+                await add_warning_to_messages(interaction)
+                await only_remove_buttons(interaction)
+                return
 
             await interaction.response.send_message(confirmation_message, ephemeral=True)
 
             # Update the original message to disable buttons
             try:
-                original_message = await interaction.channel.fetch_message(interaction.message.id)
-                await original_message.clear_reaction('⏳')
-                await original_message.add_reaction('✅')
-                new_view = discord.ui.View(timeout=None)
-                for item in original_message.components:
-                    if isinstance(item, discord.ui.Button):
-                        new_button = discord.ui.Button(style=item.style, label=item.label, disabled=True)
-                        new_view.add_item(new_button)
-                await original_message.edit(view=new_view)
+                modlog = get_translation(self.user_lang, "log_perma").format(interaction.user.display_name,
+                                                                            get_playername(self), reason)
+                await add_modlog(interaction, modlog, self.steam_id_64, self.user_lang, self.api_client)
+                await add_check_to_messages(interaction)
             except discord.NotFound:
                 logging.error("Original message not found or uneditable.")
             except Exception as e:
@@ -59,6 +59,8 @@ class PermaBanModal(discord.ui.Modal):
 
         else:
             await interaction.response.send_message(get_translation(self.user_lang, "player_name_not_retrieved"), ephemeral=True)
+            await add_warning_to_messages(interaction)
+            await only_remove_buttons(interaction)
 
 class PermaBanButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, steam_id_64, user_lang):

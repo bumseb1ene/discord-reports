@@ -1,9 +1,8 @@
 import discord
 from discord.ui import Select  # Import der Select Klasse
-from helpers import get_translation, get_author_name, set_author_name
+from helpers import get_translation, get_author_name, set_author_name, add_modlog, add_check_to_messages, get_playername, add_warning_to_messages, only_remove_buttons
 import logging
-from datetime import datetime
-import time
+
 
 class TempBanModal(discord.ui.Modal):
     def __init__(self, api_client, steam_id_64, user_lang):
@@ -54,25 +53,18 @@ class TempBanModal(discord.ui.Modal):
 
             # Update the original message to disable buttons
             try:
-                original_message = await interaction.channel.fetch_message(interaction.message.id)
-                actiontime = "<t:" + str(int(time.time())) + ":f>"
-                modname = interaction.user.display_name
-                if player_name:
-                    name = player_name
-                else:
-                    name = self.steam_id_64
-                new_embed = original_message.embeds[0]
-                new_embed.add_field(name=get_translation(self.user_lang, "logbook"), value=get_translation(self.user_lang, "log_tempban").format(actiontime, modname, name, duration_hours, reason))
-                await original_message.add_reaction('✅')
-                await original_message.edit(view=None, embed=new_embed)
-                reportmessage = await original_message.channel.fetch_message(original_message.reference.message_id)
-                await reportmessage.add_reaction('✅')
+                modlog = get_translation(self.user_lang, "log_tempban").format(interaction.user.display_name, get_playername(self),
+                                                                              duration_hours, reason)
+                await add_modlog(interaction, modlog, self.steam_id_64, self.user_lang, self.api_client)
+                await add_check_to_messages(interaction)
             except discord.NotFound:
                 logging.error("Original message not found or uneditable.")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
         else:
             await interaction.response.send_message(get_translation(self.user_lang, "player_name_not_retrieved"), ephemeral=True)
+            await add_warning_to_messages(interaction)
+            await only_remove_buttons(interaction)
 
 class TempBanButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, steam_id_64, user_lang, report_type, player_additional_data = False):
@@ -123,10 +115,17 @@ class MessagePlayerModal(discord.ui.Modal):
                     confirmation_message = get_translation(self.user_lang, "error_sending_message")
 
                 await interaction.response.send_message(confirmation_message, ephemeral=True)
+                modlog = get_translation(self.user_lang, "log_message_reporter").format(interaction.user.display_name, get_playername(self),message_content)
+                await add_modlog(interaction, modlog, steam_id_64, self.user_lang, self.api_client)
+                await add_check_to_messages(interaction)
             else:
                 await interaction.response.send_message(get_translation(self.user_lang, "author_name_not_found"), ephemeral=True)
+                await add_warning_to_messages(interaction)
+                await only_remove_buttons(interaction)
         else:
             await interaction.response.send_message(get_translation(self.user_lang, "error_retrieving_players"), ephemeral=True)
+            await add_warning_to_messages(interaction)
+            await only_remove_buttons(interaction)
 
 
 class MessagePlayerButton(discord.ui.Button):
@@ -166,14 +165,18 @@ class MessageReportedPlayerModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         message_content = self.message.value
         by = interaction.user.name
-
         player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
         if player_name:
             success = await self.api_client.do_message_player(player_name, self.steam_id_64, message_content)
-
             if success:
+                modlog = get_translation(self.user_lang, "log_message_reported").format(interaction.user.display_name,
+                                                                               get_playername(self), message_content)
+                await add_modlog(interaction, modlog, self.steam_id_64, self.user_lang, self.api_client)
+                await add_check_to_messages(interaction)
                 confirmation_message = get_translation(self.user_lang, "message_sent_successfully").format(player_name, message_content)
             else:
+                await add_warning_to_messages(interaction)
+                await only_remove_buttons(interaction)
                 confirmation_message = get_translation(self.user_lang, "error_sending_message")
 
             await interaction.response.send_message(confirmation_message, ephemeral=True)
@@ -190,7 +193,7 @@ class MessageReportedPlayerButton(discord.ui.Button):
         await interaction.response.send_modal(modal)
 
 class KickReasonSelect(Select):
-    def __init__(self, steam_id_64, user_lang, original_message):
+    def __init__(self, steam_id_64, user_lang, original_message, api_client):
         options = [
             discord.SelectOption(label=get_translation(user_lang, "no_communication_voice_chat"), value=get_translation(user_lang, "no_communication_voice_chat")),
             discord.SelectOption(label=get_translation(user_lang, "solo_squads_not_allowed"), value=get_translation(user_lang, "solo_squads_not_allowed")),
@@ -204,35 +207,14 @@ class KickReasonSelect(Select):
         self.steam_id_64 = steam_id_64
         self.user_lang = user_lang
         self.original_message = original_message
+        self.api_client = api_client
 
     async def callback(self, interaction: discord.Interaction):
         selected_reason = self.values[0]
 
         await interaction.response.send_message(f"Gewählter Grund: {selected_reason}", ephemeral=True)
-
-        # Deaktiviere alle Items in der View
-        for item in self.view.children:
-            item.disabled = True
-
-        # Bearbeite die Originalnachricht, um die View zu entfernen
-        await self.original_message.edit(view=None)
-
-        # Füge das grüne Häkchen als Reaktion hinzu und entferne die Sanduhr
-        await self.original_message.add_reaction('✅')
-        await self.original_message.clear_reaction('⏳')
-
+        modlog = get_translation(self.user_lang, "log_kick").format(interaction.user.display_name, get_playername(self), selected_reason)
+        await add_modlog(interaction, modlog, self.steam_id_64, self.user_lang, self.api_client)
+        await add_check_to_messages(interaction)
         # Bestätige den Kick
         await self.view.bot.confirm_kick(interaction, self.steam_id_64, selected_reason)
-
-
-
-
-
-
-
-
-
-
-
-
-

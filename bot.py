@@ -313,7 +313,7 @@ class MyBot(commands.Bot):
         steam_id_64 = interaction.data['custom_id']
         original_message = interaction.message
         view = discord.ui.View(timeout=None)
-        select = KickReasonSelect(steam_id_64, user_lang, original_message)
+        select = KickReasonSelect(steam_id_64, user_lang, original_message, self.api_client)
         view.add_item(select)
         view.bot = self
         await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)

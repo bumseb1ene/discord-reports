@@ -86,7 +86,12 @@
         "insults_not_tolerated": "Insults are not tolerated",
         "cheating": "Cheating is not tolerated",
         "spamming": "Spamming is not tolerated",
-        "logbook": "Logbook"
+        "logbook": "Logbook",
+        "log_tempban": "{}: {} banned {} for {} hours. Reason: {}",
+        "log_message_reported": "} wrote the reported player {} a message. Content: {}",
+        "log_message_reporter": "{} wrote the reporter {} a message. Content: {}",
+        "log_kick": "{} has kicked {}. Reason: {}",
+        "log_perma": "{} banned {} permanently. Reason: {}"
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -176,6 +181,10 @@
         "cheating": "Cheating wird nicht toleriert",
         "spamming": "Spamming wird nicht toleriert",
         "logbook": "Logbuch",
-        "log_tempban": "{}: {} bannte {} für {} Stunden. Grund: {}"
+        "log_tempban": "{} bannte {} für {} Stunden. Grund: {}",
+        "log_message_reported": "{} hat dem gemeldeten Spieler {} eine Nachricht geschrieben. Inhalt: {}",
+        "log_message_reporter": "{} hat dem Reporter {} eine Nachricht geschrieben. Inhalt: {}",
+        "log_kick": "{} hat {} gekickt. Grund: {}",
+        "log_perma": "{} hat {} permanent gebannt. Grund: {}"
     }
 }
