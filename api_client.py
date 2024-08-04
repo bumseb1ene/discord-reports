@@ -95,9 +95,12 @@ class APIClient:
             logging.error(f"Error sending kick request: {e}")
             return False
 
-# TODO: Check
+
     async def get_player_by_steam_id(self, steam_id_64):
-        url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
+        if self.is_v10():
+            url = f'{self.base_url}/api/get_player_profile?player_id={steam_id_64}'
+        else:
+            url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
@@ -112,7 +115,10 @@ class APIClient:
             return None
 
     async def get_player_by_id(self, steam_id_64):
-        url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
+        if self.is_v10():
+            url = f'{self.base_url}/api/get_player_profile?player_id={steam_id_64}'
+        else:
+            url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
@@ -197,6 +203,31 @@ class APIClient:
                 if response.status != 200:
                     response_text = await response.text()
                     logging.error(f"Fehler beim Anwenden des permanenten Bans: {response.status}, Antwort: {response_text}")
+                    return False
+                return True
+        except Exception as e:
+            logging.error(f"Fehler beim Senden der Perma-Ban-Anfrage: {e}")
+            return False
+
+    async def add_blacklist_record(self, steam_id_64, reason, by):
+        if not self.session:
+            await self.create_session()
+        if self.is_v10():
+            url = f'{self.base_url}/api/perma_ban'
+            data = {
+                'player_id': steam_id_64,
+                "blacklist_id": "0", # Default Blacklist
+                'reason': reason,
+                'admin_name': by,
+
+            }
+        else:
+            return True
+        try:
+            async with self.session.post(url, json=data) as response:
+                if response.status != 200:
+                    response_text = await response.text()
+                    logging.error(f"Fehler beim Hinzufügen des Blacklist-Eintrags: {response.status}, Antwort: {response_text}")
                     return False
                 return True
         except Exception as e:
