@@ -1,15 +1,15 @@
 import discord
 from discord.ui import Select  # Import der Select Klasse
 from helpers import get_translation, get_author_name, set_author_name, add_modlog, add_check_to_messages, \
-    get_playername, add_warning_to_messages, only_remove_buttons
+    get_playername, add_emojis_to_messages, only_remove_buttons, get_logs
 import logging
 
 
 class TempBanModal(discord.ui.Modal):
-    def __init__(self, api_client, steam_id_64, user_lang):
+    def __init__(self, api_client, player_id, user_lang):
         super().__init__(title=get_translation(user_lang, "temp_ban_modal_title"))
         self.api_client = api_client
-        self.steam_id_64 = steam_id_64
+        self.player_id = player_id
         self.user_lang = user_lang
 
         self.duration = discord.ui.TextInput(
@@ -33,9 +33,9 @@ class TempBanModal(discord.ui.Modal):
         reason = self.reason.value
         by = interaction.user.name
 
-        player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
+        player_name = await self.api_client.get_player_by_steam_id(self.player_id)
         if player_name:
-            success = await self.api_client.do_temp_ban(player_name, self.steam_id_64, duration_hours, reason, by)
+            success = await self.api_client.do_temp_ban(player_name, self.player_id, duration_hours, reason, by)
 
             if success:
                 confirmation_message = get_translation(self.user_lang, "player_temp_banned_successfully").format(
@@ -46,10 +46,10 @@ class TempBanModal(discord.ui.Modal):
                     author_name = get_author_name()
                     author_player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
                     if author_player:
-                        steam_id_64 = author_player['steam_id_64']
+                        player_id = author_player['player_id']
                         message_to_author = get_translation(self.user_lang, "message_to_author_temp_banned").format(
                             player_name)
-                        await self.api_client.do_message_player(author_name, steam_id_64, message_to_author)
+                        await self.api_client.do_message_player(author_name, player_id, message_to_author)
             else:
                 confirmation_message = get_translation(self.user_lang, "error_temp_banning_player")
             await interaction.response.send_message(confirmation_message, ephemeral=True)
@@ -59,7 +59,7 @@ class TempBanModal(discord.ui.Modal):
                 modlog = get_translation(self.user_lang, "log_tempban").format(interaction.user.display_name,
                                                                                await get_playername(self),
                                                                                duration_hours, reason)
-                await add_modlog(interaction, modlog, self.steam_id_64, self.user_lang, self.api_client)
+                await add_modlog(interaction, modlog, self.player_id, self.user_lang, self.api_client)
                 await add_check_to_messages(interaction)
             except discord.NotFound:
                 logging.error("Original message not found or uneditable.")
@@ -68,30 +68,30 @@ class TempBanModal(discord.ui.Modal):
         else:
             await interaction.response.send_message(get_translation(self.user_lang, "player_name_not_retrieved"),
                                                     ephemeral=True)
-            await add_warning_to_messages(interaction)
+            await add_emojis_to_messages(interaction)
             await only_remove_buttons(interaction)
 
 
 class TempBanButton(discord.ui.Button):
-    def __init__(self, label: str, custom_id: str, api_client, steam_id_64, user_lang, report_type,
+    def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, report_type,
                  player_additional_data=False):
         super().__init__(style=discord.ButtonStyle.blurple, label=label, custom_id=custom_id)
         self.api_client = api_client
-        self.steam_id_64 = steam_id_64
+        self.player_id = player_id
         self.user_lang = user_lang
         self.report_type = report_type
         self.player_additional_data = player_additional_data
 
     async def callback(self, interaction: discord.Interaction):
-        modal = TempBanModal(self.api_client, self.steam_id_64, self.user_lang)
+        modal = TempBanModal(self.api_client, self.player_id, self.user_lang)
         await interaction.response.send_modal(modal)
 
 
 class MessagePlayerModal(discord.ui.Modal):
-    def __init__(self, title: str, api_client, steam_id_64, user_lang, author_name):
+    def __init__(self, title: str, api_client, player_id, user_lang, author_name):
         super().__init__(title=get_translation(user_lang, "message_player_modal_title"))
         self.api_client = api_client
-        self.steam_id_64 = steam_id_64
+        self.player_id = player_id
         self.user_lang = user_lang
         self.author_name = author_name  # Hinzufügen des author_name
 
@@ -114,8 +114,8 @@ class MessagePlayerModal(discord.ui.Modal):
             players_list = players_data['result']
             author_player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
             if author_player:
-                steam_id_64 = author_player['steam_id_64']
-                success = await self.api_client.do_message_player(author_name, steam_id_64, message_content)
+                player_id = author_player['player_id']
+                success = await self.api_client.do_message_player(author_name, player_id, message_content)
 
                 if success:
                     confirmation_message = get_translation(self.user_lang, "message_sent_successfully").format(
@@ -125,27 +125,27 @@ class MessagePlayerModal(discord.ui.Modal):
 
                 await interaction.response.send_message(confirmation_message, ephemeral=True)
                 modlog = get_translation(self.user_lang, "log_message_reporter").format(interaction.user.display_name,
-                                                                                        await get_playername(self),
+                                                                                        author_name,
                                                                                         message_content)
-                await add_modlog(interaction, modlog, steam_id_64, self.user_lang, self.api_client)
+                await add_modlog(interaction, modlog, player_id, self.user_lang, self.api_client)
                 await add_check_to_messages(interaction)
             else:
                 await interaction.response.send_message(get_translation(self.user_lang, "author_name_not_found"),
                                                         ephemeral=True)
-                await add_warning_to_messages(interaction)
+                await add_emojis_to_messages(interaction)
                 await only_remove_buttons(interaction)
         else:
             await interaction.response.send_message(get_translation(self.user_lang, "error_retrieving_players"),
                                                     ephemeral=True)
-            await add_warning_to_messages(interaction)
+            await add_emojis_to_messages(interaction)
             await only_remove_buttons(interaction)
 
 
 class MessagePlayerButton(discord.ui.Button):
-    def __init__(self, label: str, custom_id: str, api_client, steam_id_64, user_lang):
+    def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang):
         super().__init__(style=discord.ButtonStyle.grey, label=label, custom_id=custom_id)
         self.api_client = api_client
-        self.steam_id_64 = steam_id_64
+        self.player_id = player_id
         self.user_lang = user_lang
 
     async def callback(self, interaction: discord.Interaction):
@@ -153,7 +153,7 @@ class MessagePlayerButton(discord.ui.Button):
         modal = MessagePlayerModal(
             get_translation(self.user_lang, "message_player_modal_title"),
             self.api_client,
-            self.steam_id_64,
+            self.player_id,
             self.user_lang,
             author_name  # Den author_name an das Modal übergeben
         )
@@ -161,10 +161,10 @@ class MessagePlayerButton(discord.ui.Button):
 
 
 class MessageReportedPlayerModal(discord.ui.Modal):
-    def __init__(self, title: str, api_client, steam_id_64, user_lang):
+    def __init__(self, title: str, api_client, player_id, user_lang):
         super().__init__(title=get_translation(user_lang, "message_reported_player_modal_title"))
         self.api_client = api_client
-        self.steam_id_64 = steam_id_64
+        self.player_id = player_id
         self.user_lang = user_lang
 
         self.message = discord.ui.TextInput(
@@ -179,40 +179,41 @@ class MessageReportedPlayerModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         message_content = self.message.value
         by = interaction.user.name
-        player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
+        player_name = await self.api_client.get_player_by_steam_id(self.player_id)
         if player_name:
-            success = await self.api_client.do_message_player(player_name, self.steam_id_64, message_content)
+            success = await self.api_client.do_message_player(player_name, self.player_id, message_content)
             if success:
                 modlog = get_translation(self.user_lang, "log_message_reported").format(interaction.user.display_name,
                                                                                         await get_playername(self),
                                                                                         message_content)
-                await add_modlog(interaction, modlog, self.steam_id_64, self.user_lang, self.api_client)
-                await add_check_to_messages(interaction)
                 confirmation_message = get_translation(self.user_lang, "message_sent_successfully").format(player_name,
                                                                                                            message_content)
-            else:
-                await add_warning_to_messages(interaction)
-                await only_remove_buttons(interaction)
-                confirmation_message = get_translation(self.user_lang, "error_sending_message")
+                await interaction.response.send_message(confirmation_message, ephemeral=True)
+                await add_modlog(interaction, modlog, self.player_id, self.user_lang, self.api_client)
+                await add_check_to_messages(interaction)
 
-            await interaction.response.send_message(confirmation_message, ephemeral=True)
+            else:
+                confirmation_message = get_translation(self.user_lang, "error_sending_message")
+                await interaction.response.send_message(confirmation_message, ephemeral=True)
+                await add_emojis_to_messages(interaction)
+                await only_remove_buttons(interaction)
 
 
 class MessageReportedPlayerButton(discord.ui.Button):
-    def __init__(self, label: str, custom_id: str, api_client, steam_id_64, user_lang):
+    def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang):
         super().__init__(style=discord.ButtonStyle.grey, label=label, custom_id=custom_id)
         self.api_client = api_client
-        self.steam_id_64 = steam_id_64
+        self.player_id = player_id
         self.user_lang = user_lang
 
     async def callback(self, interaction: discord.Interaction):
         modal = MessageReportedPlayerModal(get_translation(self.user_lang, "message_reported_player_modal_title"),
-                                           self.api_client, self.steam_id_64, self.user_lang)
+                                           self.api_client, self.player_id, self.user_lang)
         await interaction.response.send_modal(modal)
 
 
 class KickReasonSelect(Select):
-    def __init__(self, steam_id_64, user_lang, original_message, api_client):
+    def __init__(self, player_id, user_lang, original_message, api_client):
         options = [
             discord.SelectOption(label=get_translation(user_lang, "no_communication_voice_chat"),
                                  value=get_translation(user_lang, "no_communication_voice_chat")),
@@ -231,18 +232,28 @@ class KickReasonSelect(Select):
         ]
         super().__init__(placeholder=get_translation(user_lang, "select_kick_reason"), min_values=1, max_values=1,
                          options=options)
-        self.steam_id_64 = steam_id_64
+        self.player_id = player_id
         self.user_lang = user_lang
         self.original_message = original_message
         self.api_client = api_client
 
     async def callback(self, interaction: discord.Interaction):
         selected_reason = self.values[0]
-
         await interaction.response.send_message(f"Gewählter Grund: {selected_reason}", ephemeral=True)
         modlog = get_translation(self.user_lang, "log_kick").format(interaction.user.display_name, await get_playername(self),
                                                                     selected_reason)
-        await add_modlog(interaction, modlog, self.steam_id_64, self.user_lang, self.api_client)
-        await add_check_to_messages(interaction)
+        await add_modlog(interaction, modlog, self.player_id, self.user_lang, self.api_client, self.original_message)
+        await add_check_to_messages(interaction, self.original_message)
         # Bestätige den Kick
-        await self.view.bot.confirm_kick(interaction, self.steam_id_64, selected_reason)
+        await self.view.bot.confirm_kick(interaction, self.player_id, selected_reason)
+
+
+class Show_logs_button(discord.ui.Button):
+    def __init__(self, api_client, player_name, custom_id):
+        super().__init__(style = discord.ButtonStyle.grey, label = "Logs", emoji="📄", custom_id = custom_id)
+        self.api_client = api_client
+        self.player_name = player_name
+
+    async def callback(self, interaction: discord.Interaction):
+        temp_log_file_path = await get_logs(self.api_client, self.player_name)
+        await interaction.response.send_message("Logs:", file=discord.File(temp_log_file_path))

@@ -34,13 +34,7 @@ class APIClient:
             self.api_version = res["version"]
             return True
 
-    def is_v10(self):
-        if self.api_version > "v10":
-            return True
-        else:
-            return False
-
-    async def get_player_data(self, steam_id_64):
+    async def get_player_data(self, player_id):
         url = f'{self.base_url}/api/get_live_game_stats'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -62,23 +56,14 @@ class APIClient:
             logging.error(f"Error fetching detailed players data: {e}")
             return None
 
-    async def do_kick(self, player, steam_id_64, reason, user_lang):
-        if self.is_v10():
-            url = f'{self.base_url}/api/kick'
-            data = {
-                'player_name': player,
-                'reason': reason,
-                'by': "Admin",
-                'player_id': steam_id_64
-            }
-        else:
-            url = f'{self.base_url}/api/do_kick'
-            data = {
-                'player': player,
-                'reason': reason,
-                'by': "Admin",
-                'steam_id_64': steam_id_64
-            }
+    async def do_kick(self, player, player_id, reason, user_lang):
+        url = f'{self.base_url}/api/kick'
+        data = {
+            'player_name': player,
+            'reason': reason,
+            'by': "Admin",
+            'player_id': player_id
+        }
         logging.info(f"Sending kick request to API: {data}")
 
         try:
@@ -96,11 +81,8 @@ class APIClient:
             return False
 
 
-    async def get_player_by_steam_id(self, steam_id_64):
-        if self.is_v10():
-            url = f'{self.base_url}/api/get_player_profile?player_id={steam_id_64}'
-        else:
-            url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
+    async def get_player_by_steam_id(self, player_id):
+        url = f'{self.base_url}/api/get_player_profile?player_id={player_id}'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
@@ -111,14 +93,11 @@ class APIClient:
                         return first_name_record['name']
                     return None
         except Exception as e:
-            logging.error(f"Error fetching player data for Steam ID {steam_id_64}: {e}")
+            logging.error(f"Error fetching player data for Steam ID {player_id}: {e}")
             return None
 
-    async def get_player_by_id(self, steam_id_64):
-        if self.is_v10():
-            url = f'{self.base_url}/api/get_player_profile?player_id={steam_id_64}'
-        else:
-            url = f'{self.base_url}/api/player?steam_id_64={steam_id_64}'
+    async def get_player_by_id(self, player_id):
+        url = f'{self.base_url}/api/get_player_profile?player_id={player_id}'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
@@ -128,14 +107,11 @@ class APIClient:
                         return data['result']
                     return None
         except Exception as e:
-            logging.error(f"Error fetching player data for Steam ID {steam_id_64}: {e}")
+            logging.error(f"Error fetching player data for Steam ID {player_id}: {e}")
             return None
 
     async def get_players(self):
-        if self.is_v10():
-            url = f'{self.base_url}/api/get_players'
-        else:
-            url = f'{self.base_url}/api/get_players_fast'
+        url = f'{self.base_url}/api/get_players'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
@@ -145,27 +121,17 @@ class APIClient:
             logging.error(f"Error fetching fast players data: {e}")
             return None
 
-    async def do_temp_ban(self, player, steam_id_64, duration_hours, reason, by):
+    async def do_temp_ban(self, player, player_id, duration_hours, reason, by):
         if not self.session:
             await self.create_session()
-        if self.is_v10():
-            url = f'{self.base_url}/api/temp_ban'
-            data = {
-                'player_name': player,
-                'player_id': steam_id_64,
-                'duration_hours': duration_hours,
-                'reason': reason,
-                'by': by
-            }
-        else:
-            url = f'{self.base_url}/api/do_temp_ban'
-            data = {
-                'player': player,
-                'steam_id_64': steam_id_64,
-                'duration_hours': duration_hours,
-                'reason': reason,
-                'by': by
-            }
+        url = f'{self.base_url}/api/temp_ban'
+        data = {
+            'player_name': player,
+            'player_id': player_id,
+            'duration_hours': duration_hours,
+            'reason': reason,
+            'by': by
+        }
 
         try:
             async with self.session.post(url, json=data) as response:
@@ -178,25 +144,16 @@ class APIClient:
             logging.error(f"Fehler beim Senden der Temp-Ban-Anfrage: {e}")
             return False
 
-    async def do_perma_ban(self, player, steam_id_64, reason, by):
+    async def do_perma_ban(self, player, player_id, reason, by):
         if not self.session:
             await self.create_session()
-        if self.is_v10():
-            url = f'{self.base_url}/api/perma_ban'
-            data = {
-                'player_name': player,
-                'player_id': steam_id_64,
-                'reason': reason,
-                'by': by
-            }
-        else:
-            url = f'{self.base_url}/api/do_perma_ban'
-            data = {
-                'player': player,
-                'steam_id_64': steam_id_64,
-                'reason': reason,
-                'by': by
-            }
+        url = f'{self.base_url}/api/perma_ban'
+        data = {
+            'player_name': player,
+            'player_id': player_id,
+            'reason': reason,
+            'by': by
+        }
 
         try:
             async with self.session.post(url, json=data) as response:
@@ -209,20 +166,17 @@ class APIClient:
             logging.error(f"Fehler beim Senden der Perma-Ban-Anfrage: {e}")
             return False
 
-    async def add_blacklist_record(self, steam_id_64, reason, by):
+    async def add_blacklist_record(self, player_id, reason, by):
         if not self.session:
             await self.create_session()
-        if self.is_v10():
-            url = f'{self.base_url}/api/perma_ban'
-            data = {
-                'player_id': steam_id_64,
-                "blacklist_id": "0", # Default Blacklist
-                'reason': reason,
-                'admin_name': by,
+        url = f'{self.base_url}/api/perma_ban'
+        data = {
+            'player_id': player_id,
+            "blacklist_id": "0",  # Default Blacklist
+            'reason': reason,
+            'admin_name': by,
 
-            }
-        else:
-            return True
+        }
         try:
             async with self.session.post(url, json=data) as response:
                 if response.status != 200:
@@ -234,21 +188,13 @@ class APIClient:
             logging.error(f"Fehler beim Senden der Perma-Ban-Anfrage: {e}")
             return False
 
-    async def do_message_player(self, player, steam_id_64, message):
-        if self.is_v10():
-            url = f'{self.base_url}/api/message_player'
-            data = {
-                "player_name": player,
-                "player_id": steam_id_64,
-                "message": message
-            }
-        else:
-            url = f'{self.base_url}/api/do_message_player'
-            data = {
-                "player": player,
-                "steam_id_64": steam_id_64,
-                "message": message
-            }
+    async def do_message_player(self, player, player_id, message):
+        url = f'{self.base_url}/api/message_player'
+        data = {
+            "player_name": player,
+            "player_id": player_id,
+            "message": message
+        }
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.post(url, json=data) as response:
@@ -279,24 +225,17 @@ class APIClient:
             logging.error(f"Error fetching structured logs: {e}")
             return None
 
-    async def post_player_comment(self, steam_id_64, comment):
-        if self.is_v10():
-            url = f'{self.base_url}/api/post_player_comment'
-            data = {
-                "player_id": steam_id_64,
-                "comment": comment
-            }
-        else:
-            url = f'{self.base_url}/api/post_player_comment'
-            data = {
-                "steam_id_64": steam_id_64,
-                "comment": comment
-            }
+    async def post_player_comment(self, player_id, comment):
+        url = f'{self.base_url}/api/post_player_comment'
+        data = {
+            "player_id": player_id,
+            "comment": comment
+        }
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.post(url, json=data) as response:
                     response.raise_for_status()
                     return await response.json()
         except Exception as e:
-            logging.error(f"Error posting comment '{comment}' for player {steam_id_64}: {e}")
+            logging.error(f"Error posting comment '{comment}' for player {player_id}: {e}")
             return None

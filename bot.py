@@ -9,11 +9,10 @@ from dotenv import load_dotenv
 from api_client import APIClient  # Assuming this is the same as provided earlier
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
-from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags
+from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs
 from modals import MessagePlayerButton, KickReasonSelect  # Importieren Sie das neue Modal und den Button
-import tempfile
 import logging
-from messages import unitreportembed, unitreportview, playerreportembed, playerreportview
+from messages import unitreportembed, unitreportview, playerreportembed, playerreportview, player_not_found_embed
 
 # Konfiguration des Loggings
 logging.basicConfig(filename='bot_log.txt', level=logging.DEBUG,  # Level auf DEBUG gesetzt
@@ -185,31 +184,17 @@ class MyBot(commands.Bot):
                     "level": player_info['level'],
                     "kills": player_info['kills'],
                     "deaths": player_info['deaths'],
-                    "steam_id_64": player_info['steam_id_64'],
+                    "player_id": player_info['player_id'],
                 }
                 matching_player = player_details
                 break
 
         if matching_player:
-            player_additional_data= await self.api_client.get_player_by_id(matching_player['steam_id_64'])
+            player_additional_data= await self.api_client.get_player_by_id(matching_player['player_id'])
             embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
             view = await unitreportview(self, user_lang, unit_name, roles, team, matching_player, player_additional_data)
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
-
-            # Fetch logs for the player and attach as a file
-            player_name = matching_player["name"]
-            logs = await self.api_client.get_structured_logs(60, None, None)  # Fetching logs without filtering by name
-            if logs and 'logs' in logs['result']:
-                log_messages = [f"{log['timestamp_ms']}: {log['action']} by {log['player']} - {log['message']}" for log in logs['result']['logs'] if log['player'] == player_name or log.get('player2') == player_name]
-                log_message = "\n".join(log_messages)
-                if log_message:
-                    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_log_file:
-                        temp_log_file.write(log_message)
-                        temp_log_file_path = temp_log_file.name
-                    await message.channel.send("Logs:", file=discord.File(temp_log_file_path))
-            else:
-                logging.debug("No logs found or error fetching logs")
         else:
             response = get_translation(user_lang, "no_players_found").format(unit_name, ', '.join(roles), team)
             await message.channel.send(response)
@@ -218,13 +203,12 @@ class MyBot(commands.Bot):
             author_name = get_author_name()
             view = View(timeout=None)
             message_author_button_label = get_translation(user_lang, "message_player").format(author_name)
-            message_author_button = MessagePlayerButton(label=message_author_button_label, custom_id=f"message_player_{author_name}", api_client=self.api_client, steam_id_64=None, user_lang=user_lang)
+            message_author_button = MessagePlayerButton(label=message_author_button_label, custom_id=f"message_player_{author_name}", api_client=self.api_client, player_id=None, user_lang=user_lang)
             view.add_item(message_author_button)
             await message.reply(get_translation(user_lang, "no_player_found_message"), view=view)
 
-        await message.add_reaction('⏳')
+            await self.player_not_found(message, get_translation(user_lang, "no_players_found").format(unit_name, ', '.join(roles), team))
         logging.info(get_translation(user_lang, "response_sent").format(unit_name, ', '.join(roles), team))
-
 
     async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=3, jaro_winkler_threshold=0.85):
         logging.info("find_and_respond_player function called")
@@ -251,7 +235,6 @@ class MyBot(commands.Bot):
                 for player_word in player_name_words:
                     levenshtein_score = levenshtein_distance(reported_word.lower(), player_word)
                     jaro_score = jaro_winkler(reported_word.lower(), player_word)
-
                     if levenshtein_score <= max_combined_score_threshold or jaro_score >= jaro_winkler_threshold:
                         combined_score = levenshtein_score + (1 - jaro_score)
                         logging.info(f"Scores for '{reported_word}' vs '{cleaned_player_name}': Levenshtein = {levenshtein_score}, Jaro = {jaro_score}, Combined = {combined_score}")
@@ -263,66 +246,53 @@ class MyBot(commands.Bot):
                             logging.info(f"New best match found: {best_match} with score {best_score}")
 
         if best_match:
-            live_game_stats = await self.api_client.get_player_data(best_player_data['steam_id_64'])
+            live_game_stats = await self.api_client.get_player_data(best_player_data['player_id'])
+            player_stats = next((item for item in live_game_stats['result']['stats'] if
+                                 item['player_id'] == best_player_data['player_id']), None)
             if not live_game_stats or 'result' not in live_game_stats or 'stats' not in live_game_stats['result']:
                 logging.error("Failed to retrieve live game stats for the best matching player")
                 return
 
-            player_stats = next((item for item in live_game_stats['result']['stats'] if item['steam_id_64'] == best_player_data['steam_id_64']), None)
-
             if player_stats:
                 logging.info(get_translation(user_lang, "best_match_found").format(best_match))
-                player_additional_data = await self.api_client.get_player_by_id(best_player_data['steam_id_64'])
+                player_additional_data = await self.api_client.get_player_by_id(best_player_data['player_id'])
                 total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
                 total_playtime_hours = total_playtime_seconds / 3600
                 embed = await playerreportembed(user_lang, best_match, player_stats, total_playtime_hours, best_player_data)
 
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
-
-                logs = await self.api_client.get_structured_logs(60, None, None)
-                if logs and 'logs' in logs['result']:
-                    log_messages = [f"{log['timestamp_ms']}: {log['action']} by {log['player']} - {log['message']}" for log in logs['result']['logs'] if log['player'] == best_match or log.get('player2') == best_match]
-                    log_message = "\n".join(log_messages)
-                    if log_message:
-                        with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_log_file:
-                            temp_log_file.write(log_message)
-                            temp_log_file_path = temp_log_file.name
-                        await message.channel.send("Logs:", file=discord.File(temp_log_file_path))
-                else:
-                    logging.debug("No logs found or error fetching logs")
-
-
-
                 await response_message.edit(view=await playerreportview(self, user_lang, best_match, best_player_data))
             else:
-                await message.channel.send(get_translation(user_lang, "no_matching_player_found"))
+                await self.player_not_found(message, get_translation(user_lang, "no_matching_player_found"))
         else:
-            response = get_translation(user_lang, "no_matching_player_found")
-            await message.channel.send(response)
+            await self.player_not_found(message, get_translation(user_lang, "no_matching_player_found"))
 
-            # Verwenden des vorhandenen MessagePlayerButton, um dem Absender zu antworten
-            author_name = get_author_name()
-            view = View(timeout=None)
-            message_author_button_label = get_translation(user_lang, "message_player").format(author_name)
-            message_author_button = MessagePlayerButton(label=message_author_button_label, custom_id=f"message_player_{author_name}", api_client=self.api_client, steam_id_64=None, user_lang=user_lang)
-            view.add_item(message_author_button)
-            await message.reply(get_translation(user_lang, "no_player_found_message"), view=view)
+    async def player_not_found(self, message, text):
+        author_name = get_author_name()
+        view = View(timeout=None)
+        message_author_button_label = get_translation(user_lang, "message_player").format(author_name)
+        message_author_button = MessagePlayerButton(label=message_author_button_label,
+                                                    custom_id=f"message_player_{author_name}",
+                                                    api_client=self.api_client, player_id=None, user_lang=user_lang)
+        embed = await player_not_found_embed(text)
+        view.add_item(message_author_button)
+        await message.reply(embed=embed, view=view)
 
     async def button_click(self, interaction: discord.Interaction):
-        steam_id_64 = interaction.data['custom_id']
+        player_id = interaction.data['custom_id']
         original_message = interaction.message
         view = discord.ui.View(timeout=None)
-        select = KickReasonSelect(steam_id_64, user_lang, original_message, self.api_client)
+        select = KickReasonSelect(player_id, user_lang, original_message, self.api_client)
         view.add_item(select)
         view.bot = self
         await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)
 
-    async def confirm_kick(self, interaction: discord.Interaction, steam_id_64, reason):
-        player_name = await self.api_client.get_player_by_steam_id(steam_id_64)
+    async def confirm_kick(self, interaction: discord.Interaction, player_id, reason):
+        player_name = await self.api_client.get_player_by_steam_id(player_id)
 
         if player_name:
-            success = await self.api_client.do_kick(player_name, steam_id_64, reason, user_lang)
+            success = await self.api_client.do_kick(player_name, player_id, reason, user_lang)
             if success:
                 kicked_message = get_translation(user_lang, "player_kicked_successfully").format(player_name)
                 await interaction.followup.send(kicked_message, ephemeral=True)
@@ -334,11 +304,11 @@ class MyBot(commands.Bot):
                     author_player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
 
                     if author_player:
-                        steam_id_64 = author_player['steam_id_64']
+                        player_id = author_player['player_id']
                         message_to_author = get_translation(user_lang, "message_to_author_kicked").format(player_name)
-                        await self.api_client.do_message_player(author_name, steam_id_64, message_to_author)
+                        await self.api_client.do_message_player(author_name, player_id, message_to_author)
                         try:
-                            author_user = await self.fetch_user(int(steam_id_64))
+                            author_user = await self.fetch_user(int(player_id))
                             await author_user.send(message_to_author)
                         except Exception as e:
                             logging.error(f"Error sending message to author: {e}")
@@ -368,8 +338,7 @@ class MyBot(commands.Bot):
         await interaction.message.edit(view=new_view)
         print("Kick buttons removed")
 
-        await interaction.message.clear_reaction('⏳')
-        await interaction.message.add_reaction('❌')
+        await add_emojis_to_messages(interaction, '❌')
         print("Reactions updated")
 
         confirm_message = get_translation(user_lang, "unjustified_report_acknowledged")
@@ -384,9 +353,11 @@ class MyBot(commands.Bot):
             players_list = players_data['result']
             player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
             if player:
-                steam_id_64 = player['steam_id_64']
+                player_id = player['player_id']
                 message_to_send = get_translation(user_lang, "report_not_granted")
-                await self.api_client.do_message_player(author_name, steam_id_64, message_to_send)
+                await self.api_client.do_message_player(author_name, player_id, message_to_send)
+                modlog = get_translation(user_lang, "log_unjustified").format(interaction.user.display_name)
+                await add_modlog(interaction, modlog, False, user_lang, self.api_client)
             else:
                 logging.error(f"Player {author_name} not found.")
         else:
@@ -398,14 +369,14 @@ class MyBot(commands.Bot):
         # Entfernen aller Buttons aus der Nachricht
         new_view = discord.ui.View(timeout=None)
         await interaction.message.edit(view=new_view)
-
-        # Hinzufügen des roten X als Reaktion
-        await interaction.message.clear_reaction('⏳')
-        await interaction.message.add_reaction('❌')
-
+        modlog = get_translation(user_lang, "log_no-action").format(interaction.user.display_name)
+        await add_modlog(interaction, modlog, False, user_lang, self.api_client)
         # Optional: Senden einer Bestätigungsnachricht
         confirm_message = get_translation(user_lang, "no_action_performed")
         await interaction.response.send_message(confirm_message, ephemeral=True)
+        # Hinzufügen des Mülleimers als Reaktion
+        await add_emojis_to_messages(interaction, '🗑')
+
 
 
 

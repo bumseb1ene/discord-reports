@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 import time
 import logging
+import tempfile
 
 def remove_markdown(content):
     # Entfernt Discord Markdown-Formatierung (fett, kursiv, unterstrichen, durchgestrichen, Inline-Code)
@@ -62,39 +63,65 @@ def remove_clantags(name):
     name_cleaned = re.sub(r"[^\w\s]", "", name_without_clantags, flags=re.UNICODE)
     return name_cleaned.strip()
 
+
 # Ads Modlog and Clears Buttons
-async def add_modlog(interaction, logmessage, steam_id_64, user_lang, api_client):
+async def add_modlog(interaction, logmessage, player_id, user_lang, api_client, original_message = False):
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d.%m.%Y %H:%M:%S:")
     logging.info(date_time + logmessage) # Log in File
-    await api_client.post_player_comment(steam_id_64, logmessage)
-    original_message = await interaction.channel.fetch_message(interaction.message.id)
+    if player_id is not False:
+        await api_client.post_player_comment(player_id, logmessage)
+    mesg_id = interaction.message.id
+    if original_message == False:
+        original_message = await interaction.channel.fetch_message(interaction.message.id)
     actiontime = "<t:" + str(int(time.time())) + ":f>: "
     logmessage = actiontime + logmessage
     new_embed = original_message.embeds[0]
     new_embed.add_field(name=get_translation(user_lang, "logbook"),value=logmessage)
     await original_message.edit(view=None, embed=new_embed)
 
+
 async def only_remove_buttons(interaction):
     original_message = await interaction.channel.fetch_message(interaction.message.id)
     await original_message.edit(view=None)
 
-async def add_check_to_messages(interaction):
-    original_message = await interaction.channel.fetch_message(interaction.message.id)
+
+async def add_check_to_messages(interaction, original_message = False):
+    if original_message == False:
+        original_message = await interaction.channel.fetch_message(interaction.message.id)
     await original_message.add_reaction('✅')
     reportmessage = await original_message.channel.fetch_message(original_message.reference.message_id)
     await reportmessage.add_reaction('✅')
 
-async def add_warning_to_messages(interaction):
+
+async def add_emojis_to_messages(interaction, emoji = '⚠️'):
     original_message = await interaction.channel.fetch_message(interaction.message.id)
-    await original_message.add_reaction('⚠️')
+    await original_message.add_reaction(emoji)
     reportmessage = await original_message.channel.fetch_message(original_message.reference.message_id)
-    await reportmessage.add_reaction('⚠️')
+    await reportmessage.add_reaction(emoji)
 
 async def get_playername(self):
-    player_name = await self.api_client.get_player_by_steam_id(self.steam_id_64)
+    player_name = await self.api_client.get_player_by_steam_id(self.player_id)
     if player_name:
         name = player_name
     else:
-        name = self.steam_id_64
+        name = self.player_id
     return name
+
+async def get_logs(api_client, player_name):
+    logs = await api_client.get_structured_logs(60, None, None)  # Fetching logs without filtering by name
+    if logs and 'logs' in logs['result']:
+        log_message = ""
+        for log in logs['result']['logs']:
+            if log['player_name_1'] == player_name or log.get('player_name_2') == player_name:
+                timestamp = datetime.fromtimestamp(log['timestamp_ms']/1000)
+                timestr = timestamp.strftime("%d.%m.%Y %H:%M:%S")
+                log_messages = f"{timestr}: {log['action']} by {log['player_name_1']} - {log['message']}"
+                log_message = log_message + log_messages + "\n"
+        if log_message:
+            with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_log_file:
+                temp_log_file.write(log_message)
+                filename = temp_log_file.name
+            return filename
+    else:
+       logging.debug("No logs found or error fetching logs")
