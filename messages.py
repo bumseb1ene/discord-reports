@@ -24,6 +24,8 @@ async def player_not_found_embed(title):
     embed = discord.Embed(title=title, color=discord.Colour.magenta())
     return embed
 
+
+
 async def unitreportview(self, user_lang, player, player_additional_data):
     view = View(timeout=None)
     current_player_name = await self.api_client.get_player_by_steam_id(player['player_id'])
