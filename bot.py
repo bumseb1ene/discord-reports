@@ -192,7 +192,7 @@ class MyBot(commands.Bot):
         if matching_player:
             player_additional_data= await self.api_client.get_player_by_id(matching_player['player_id'])
             embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
-            view = await unitreportview(self, user_lang, unit_name, roles, team, matching_player, player_additional_data)
+            view = await unitreportview(self, user_lang, matching_player, player_additional_data)
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
         else:
@@ -279,14 +279,6 @@ class MyBot(commands.Bot):
         view.add_item(message_author_button)
         await message.reply(embed=embed, view=view)
 
-    async def button_click(self, interaction: discord.Interaction):
-        player_id = interaction.data['custom_id']
-        original_message = interaction.message
-        view = discord.ui.View(timeout=None)
-        select = KickReasonSelect(player_id, user_lang, original_message, self.api_client)
-        view.add_item(select)
-        view.bot = self
-        await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)
 
     async def confirm_kick(self, interaction: discord.Interaction, player_id, reason):
         player_name = await self.api_client.get_player_by_steam_id(player_id)
