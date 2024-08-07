@@ -137,3 +137,13 @@ async def get_logs(api_client, player_name):
             return filename
     else:
        return False
+
+async def get_playerid_from_name(name, api_client):
+    players_data = await api_client.get_players()
+    if players_data and 'result' in players_data:
+        players_list = players_data['result']
+        author_player = next((p for p in players_list if p['name'].lower() == name.lower()), None)
+        if author_player:
+            player_id = author_player['player_id']
+            return player_id
+

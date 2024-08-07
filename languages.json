@@ -99,7 +99,8 @@
         "manual_process_respond": "No action was taken. Please mark the message as completed with :white_check_mark: after you have finished processing it.",
         "log_manual": "{} is going to process the report manually.",
         "button_manual_process": "⚙\uFE0F Process manually",
-        "report_finished": "✅Processing finished"
+        "report_finished": "✅Processing finished",
+        "no_reason_or_player": "Thank you for your report. However, in order for us to be able to process your message, it is necessary to specify a player and/or the problem. Write this after the admin command.\nExample: !admin superhero kills me\n\nThank you.\nThis is an automatically generated message."
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -137,7 +138,7 @@
         "report_for_player": "Bericht für Spieler: {}",
         "information": "Information",
         "information_value": "Überprüft bitte jedes Mal, ob der Report auch zur Spielermeldung passt. Dies kann nämlich manchmal fehlschlagen!",
-        "no_matching_player_found": "Kein passender Spielername gefunden oder Übereinstimmung zu gering.",
+        "no_matching_player_found": "In der Meldung wurde weder ein Squad-Name noch ein Spielername gefunden.",
         "check_report_match": "Überprüft bitte jedes Mal, ob der Report auch zur Spielermeldung passt. Dies kann nämlich manchmal fehlschlagen!",
         "confirm": "Bestätigen",
         "are_you_sure_kick": "Bist du sicher, dass du diesen Spieler kicken möchtest?",
@@ -202,6 +203,7 @@
         "log_manual": "{} wird die Meldung manuell bearbeiten.",
         "button_manual_process": "\uD83D\uDC40 Manuell bearbeiten",
         "report_finished": "✅Bearbeitung abgeschlossen",
-        "has_finished_report": "{} hat die Bearbeitung abgeschlossen."
+        "has_finished_report": "{} hat die Bearbeitung abgeschlossen.",
+        "no_reason_or_player": "Danke für deine Meldung. Damit wir deine Meldung allerdings bearbeiten können, ist die Angabe eines Spielers und/oder des Problems notwendig. Schreibe das nach dem Admin-Befehl.\nBeispiel: !admin superhero teamkillt mich\n\nVielen Dank.\nDies ist eine automatisch generierte Nachricht."
     }
 }

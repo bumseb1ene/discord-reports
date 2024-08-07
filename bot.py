@@ -11,7 +11,7 @@ from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, \
     set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs, \
-    only_remove_buttons
+    only_remove_buttons, get_playerid_from_name
 from modals import MessagePlayerButton, KickReasonSelect, Finish_Report_Button  # Importieren Sie das neue Modal und den Button
 import logging
 from messages import unitreportembed, Unitreportview, playerreportembed, player_not_found_embed, Playerreportview
@@ -31,6 +31,8 @@ USERNAME = os.getenv('RCON_USERNAME')
 PASSWORD = os.getenv('RCON_PASSWORD')
 MAX_SERVERS = int(os.getenv('MAX_SERVERS'))
 user_lang = os.getenv('USER_LANG', 'en')  # Standardwert auf 'en' gesetzt
+ADMIN_COMMAND = os.getenv("ADMIN_COMMAND")
+ADMIN_COMMAND_ARGUMENTS = os.getenv("ADMIN_COMMAND_ARGUMENTS")
 
 # Setting up Discord client
 intents = discord.Intents.default()
@@ -129,11 +131,21 @@ class MyBot(commands.Bot):
                 logging.info(f"Cleaned Embed Description: {clean_description}")
                 command_parts = clean_description.split()
 
-            if '!admin' in command_parts:
-                logging.info(f"'!admin' command found in message: {message.content}")
-                admin_index = command_parts.index('!admin')
-                reported_parts = command_parts[admin_index + 1:]
-                logging.info(f"Parts after '!admin': {reported_parts}")
+            if not "clean_description" in locals():
+                return
+
+            if clean_description.lower() == ADMIN_COMMAND or clean_description.lower() == ADMIN_COMMAND_ARGUMENTS:
+                author_name = get_author_name()
+                playerid = await get_playerid_from_name(get_author_name(), api_client=self.api_client)
+                message_content = get_translation(user_lang, "no_reason_or_player")
+                success = await self.api_client.do_message_player(author_name, playerid, message_content)
+                if success:
+                    await message.add_reaction("✅")
+                return
+
+
+            if "watched on:" not in clean_description: # Don't react on watchlist messages
+                reported_parts = command_parts
 
                 if reported_parts:
                     if any(word in reported_parts for word in trigger_words):
@@ -199,17 +211,8 @@ class MyBot(commands.Bot):
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
         else:
-            response = get_translation(user_lang, "no_players_found").format(unit_name, ', '.join(roles), team)
-            await message.channel.send(response)
-
             # Verwenden des vorhandenen MessagePlayerButton, um dem Absender zu antworten
             author_name = get_author_name()
-            view = View(timeout=None)
-            message_author_button_label = get_translation(user_lang, "message_player").format(author_name)
-            message_author_button = MessagePlayerButton(label=message_author_button_label, custom_id=f"message_player_{author_name}", api_client=self.api_client, player_id=None, user_lang=user_lang)
-            view.add_item(message_author_button)
-            await message.reply(get_translation(user_lang, "no_player_found_message"), view=view)
-
             await self.player_not_found(message, get_translation(user_lang, "no_players_found").format(unit_name, ', '.join(roles), team))
         logging.info(get_translation(user_lang, "response_sent").format(unit_name, ', '.join(roles), team))
 
