@@ -9,10 +9,12 @@ from dotenv import load_dotenv
 from api_client import APIClient  # Assuming this is the same as provided earlier
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
-from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs
-from modals import MessagePlayerButton, KickReasonSelect  # Importieren Sie das neue Modal und den Button
+from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, \
+    set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs, \
+    only_remove_buttons
+from modals import MessagePlayerButton, KickReasonSelect, Finish_Report_Button  # Importieren Sie das neue Modal und den Button
 import logging
-from messages import unitreportembed, unitreportview, playerreportembed, playerreportview, player_not_found_embed
+from messages import unitreportembed, Unitreportview, playerreportembed, player_not_found_embed, Playerreportview
 
 # Konfiguration des Loggings
 logging.basicConfig(filename='bot_log.txt', level=logging.DEBUG,  # Level auf DEBUG gesetzt
@@ -141,7 +143,7 @@ class MyBot(commands.Bot):
 
                         # Accept 'commander' and 'kommandant' as trigger words
                         if "commander" in reported_parts or "kommandant" in reported_parts:
-                            unit_name = "commmand"  # möglicherweise Tippfehler, sollte 'command' statt 'commmand' sein
+                            unit_name = "command"
 
                         roles = ["officer", "spotter", "tankcommander", "armycommander"]
                         logging.info(f"Unit name: {unit_name}, Roles: {roles}")
@@ -192,7 +194,8 @@ class MyBot(commands.Bot):
         if matching_player:
             player_additional_data= await self.api_client.get_player_by_id(matching_player['player_id'])
             embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
-            view = await unitreportview(self, user_lang, matching_player, player_additional_data)
+            view = Unitreportview(self.api_client)
+            await view.add_buttons(user_lang, matching_player, player_additional_data, self.kick_button_callback, self.unjustified_report_click, self.no_action_click, self.manual_process)
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
         else:
@@ -262,7 +265,9 @@ class MyBot(commands.Bot):
 
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
-                await response_message.edit(view=await playerreportview(self, user_lang, best_match, best_player_data))
+                view = Playerreportview(self.api_client)
+                await view.add_buttons(user_lang, best_match, best_player_data, self.kick_button_callback, self.unjustified_report_click, self.no_action_click, self.manual_process)
+                await response_message.edit(view=view)
             else:
                 await self.player_not_found(message, get_translation(user_lang, "no_matching_player_found"))
         else:
@@ -279,7 +284,7 @@ class MyBot(commands.Bot):
         view.add_item(message_author_button)
         await message.reply(embed=embed, view=view)
 
-    async def button_click(self, interaction: discord.Interaction):
+    async def kick_button_callback(self, interaction: discord.Interaction):
         player_id = interaction.data['custom_id']
         original_message = interaction.message
         view = discord.ui.View(timeout=None)
@@ -367,8 +372,7 @@ class MyBot(commands.Bot):
 
     async def no_action_click(self, interaction: discord.Interaction):
         # Entfernen aller Buttons aus der Nachricht
-        new_view = discord.ui.View(timeout=None)
-        await interaction.message.edit(view=new_view)
+        await only_remove_buttons(interaction)
         modlog = get_translation(user_lang, "log_no-action").format(interaction.user.display_name)
         await add_modlog(interaction, modlog, False, user_lang, self.api_client)
         # Optional: Senden einer Bestätigungsnachricht
@@ -377,6 +381,15 @@ class MyBot(commands.Bot):
         # Hinzufügen des Mülleimers als Reaktion
         await add_emojis_to_messages(interaction, '🗑')
 
+    async def manual_process(self, interaction: discord.Interaction):
+        view = Finish_Report_Button(user_lang=user_lang, api_client=self.api_client)
+        modlog = get_translation(user_lang, "log_manual").format(interaction.user.display_name)
+        await interaction.message.edit(view=view)
+        await add_modlog(interaction, modlog, False, user_lang, self.api_client, delete_buttons=False)
+        # Optional: Senden einer Bestätigungsnachricht
+        confirm_message = get_translation(user_lang, "manual_process_respond")
+        await interaction.response.send_message(confirm_message, ephemeral=True)
+        await add_emojis_to_messages(interaction, '👀')
 
 
 

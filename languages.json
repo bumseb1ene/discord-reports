@@ -93,7 +93,13 @@
         "log_kick": "{} has kicked {}. Reason: {}",
         "log_perma": "{} banned {} permanently. Reason: {}",
         "log_unjustified": "{} has marked the report as unjustified.",
-        "log_no-action": "{} has marked the report as trash."
+        "log_no-action": "{} has marked the report as trash.",
+        "no_logs_found": "No logs found for Player `{}`.",
+        "logs_for": "Logs for player `{}`:",
+        "manual_process_respond": "No action was taken. Please mark the message as completed with :white_check_mark: after you have finished processing it.",
+        "log_manual": "{} is going to process the report manually.",
+        "button_manual_process": "⚙\uFE0F Process manually",
+        "report_finished": "✅Processing finished"
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -189,6 +195,13 @@
         "log_kick": "{} hat {} gekickt. Grund: {}",
         "log_perma": "{} hat {} permanent gebannt. Grund: {}",
         "log_unjustified": "{} hat die Meldung als unberechtigt markiert.",
-        "log_no-action": "{} hat die Meldung als Müll markiert."
+        "log_no-action": "{} hat die Meldung als Müll markiert.",
+        "no_logs_found": "Keine Logs für Spieler `{}` gefunden.",
+        "logs_for": "Logs für Spieler `{}`:",
+        "manual_process_respond": "Keine Aktion durchgeführt. Bitte markiere die Nachricht nach deiner Bearbeitung mit ✅ als abgeschlossen.",
+        "log_manual": "{} wird die Meldung manuell bearbeiten.",
+        "button_manual_process": "\uD83D\uDC40 Manuell bearbeiten",
+        "report_finished": "✅Bearbeitung abgeschlossen",
+        "has_finished_report": "{} hat die Bearbeitung abgeschlossen."
     }
 }

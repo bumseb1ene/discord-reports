@@ -1,8 +1,10 @@
 import discord
-from discord.ui import Select  # Import der Select Klasse
+from discord.ui import Select, Button  # Import der Select Klasse
 from helpers import get_translation, get_author_name, set_author_name, add_modlog, add_check_to_messages, \
-    get_playername, add_emojis_to_messages, only_remove_buttons, get_logs
+    get_playername, add_emojis_to_messages, only_remove_buttons, get_logs, remove_emojis_to_messages
 import logging
+import os
+
 
 
 class TempBanModal(discord.ui.Modal):
@@ -249,11 +251,49 @@ class KickReasonSelect(Select):
 
 
 class Show_logs_button(discord.ui.Button):
-    def __init__(self, api_client, player_name, custom_id):
+    def __init__(self, view, player_name, custom_id, user_lang):
         super().__init__(style = discord.ButtonStyle.grey, label = "Logs", emoji="📄", custom_id = custom_id)
-        self.api_client = api_client
+        self.api_client = view.api_client
         self.player_name = player_name
+        self.msg_view = view
+        self.user_lang = user_lang
 
     async def callback(self, interaction: discord.Interaction):
         temp_log_file_path = await get_logs(self.api_client, self.player_name)
-        await interaction.response.send_message("Logs:", file=discord.File(temp_log_file_path))
+        if temp_log_file_path is False:
+            await interaction.response.send_message(get_translation(self.user_lang, "no_logs_found").format(self.player_name))
+        else:
+            msg = get_translation(self.user_lang, "logs_for").format(self.player_name)
+            await interaction.response.send_message(msg, file=discord.File(temp_log_file_path))
+        self.disabled = True
+        emb = interaction.message.embeds[0]
+        await interaction.message.edit(embed=emb, view=self.msg_view)
+
+
+class Finish_Report_Button(discord.ui.View): # Create a class called MyView that subclasses discord.ui.View
+    def __init__(self, user_lang, api_client):
+        super().__init__(timeout=3600)
+        self.user_lang = user_lang
+        self.api_client = api_client
+        self.add_buttons()
+
+    async def on_timeout(self) -> None:
+        # Step 2
+        for item in self.children:
+            item.disabled = True
+
+        # Step 3
+        await self.message.edit(view=self)
+
+    def add_buttons(self):
+        button_label = get_translation(self.user_lang, "report_finished")
+        button = Button(label=button_label, style=discord.ButtonStyle.green, custom_id="finished_processing")
+        button.callback = self.button_callback
+        self.add_item(button)
+
+    async def button_callback(self, interaction: discord.Interaction):
+        await add_check_to_messages(interaction)
+        await only_remove_buttons(interaction)
+        await remove_emojis_to_messages(interaction, "👀")
+        logmessage = get_translation(self.user_lang, "has_finished_report").format(interaction.user.display_name)
+        await add_modlog(interaction, logmessage, player_id=False, user_lang=self.user_lang, api_client=self.api_client, add_entry=True)
