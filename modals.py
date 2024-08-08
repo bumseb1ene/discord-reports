@@ -232,7 +232,7 @@ class KickReasonSelect(Select):
             discord.SelectOption(label=get_translation(user_lang, "spamming"),
                                  value=get_translation(user_lang, "spamming")),
         ]
-        super().__init__(placeholder=get_translation(user_lang, "select_kick_reason"), min_values=1, max_values=1,
+        super().__init__(placeholder=get_translation(user_lang, "select_reason"), min_values=1, max_values=1,
                          options=options)
         self.player_id = player_id
         self.user_lang = user_lang
@@ -297,3 +297,33 @@ class Finish_Report_Button(discord.ui.View): # Create a class called MyView that
         await remove_emojis_to_messages(interaction, "👀")
         logmessage = get_translation(self.user_lang, "has_finished_report").format(interaction.user.display_name)
         await add_modlog(interaction, logmessage, player_id=False, user_lang=self.user_lang, api_client=self.api_client, add_entry=True)
+
+
+class ReasonSelect(discord.ui.View):
+
+    def __init__(self, user_lang, api_client, player_id):
+        super().__init__(timeout=600)
+        self.user_lang = user_lang
+        self.api_client = api_client
+        self.reasons = []
+
+
+    async def initialize_view(self):
+        select_label = get_translation(self.user_lang, "select_reason")
+        reasons = await self.api_client.get_all_standard_message_config()
+        self.reasons = reasons
+        selectinst = Select(placeholder=select_label)
+        selectinst.min_values = 1
+        selectinst.max_values = 1
+        options = []
+        for x, reason in enumerate(reasons):
+            if len(reason) > 100:
+                reason = reason[:100]
+            options.append(discord.SelectOption(label=reason, value=x))
+        selectinst.options = options
+        selectinst.callback = self.select_callback
+        self.add_item(selectinst)
+        pass
+
+    async def select_callback(self, interaction):
+        await interaction.response.send_message(f"Awesome! I like {select.values[0]} too!")

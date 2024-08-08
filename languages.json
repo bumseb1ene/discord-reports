@@ -204,6 +204,7 @@
         "button_manual_process": "\uD83D\uDC40 Manuell bearbeiten",
         "report_finished": "✅Bearbeitung abgeschlossen",
         "has_finished_report": "{} hat die Bearbeitung abgeschlossen.",
-        "no_reason_or_player": "Danke für deine Meldung. Damit wir deine Meldung allerdings bearbeiten können, ist die Angabe eines Spielers und/oder des Problems notwendig. Schreibe das nach dem Admin-Befehl.\nBeispiel: !admin superhero teamkillt mich\n\nVielen Dank.\nDies ist eine automatisch generierte Nachricht."
+        "no_reason_or_player": "Danke für deine Meldung. Damit wir deine Meldung allerdings bearbeiten können, ist die Angabe eines Spielers und/oder des Problems notwendig. Schreibe das nach dem Admin-Befehl.\nBeispiel: !admin superhero teamkillt mich\n\nVielen Dank.\nDies ist eine automatisch generierte Nachricht.",
+        "select_reason": "Begründung auswählen"
     }
 }

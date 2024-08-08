@@ -12,7 +12,7 @@ from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, \
     set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs, \
     only_remove_buttons, get_playerid_from_name
-from modals import MessagePlayerButton, KickReasonSelect, Finish_Report_Button  # Importieren Sie das neue Modal und den Button
+from modals import MessagePlayerButton, KickReasonSelect, Finish_Report_Button, ReasonSelect  # Importieren Sie das neue Modal und den Button
 import logging
 from messages import unitreportembed, Unitreportview, playerreportembed, player_not_found_embed, Playerreportview
 
@@ -141,6 +141,7 @@ class MyBot(commands.Bot):
                 success = await self.api_client.do_message_player(author_name, playerid, message_content)
                 if success:
                     await message.add_reaction("✅")
+                    await message.add_reaction("📨")
                 return
 
 
@@ -291,9 +292,8 @@ class MyBot(commands.Bot):
         player_id = interaction.data['custom_id']
         original_message = interaction.message
         view = discord.ui.View(timeout=None)
-        select = KickReasonSelect(player_id, user_lang, original_message, self.api_client)
-        view.add_item(select)
-        view.bot = self
+        view = ReasonSelect(user_lang, self.api_client, player_id)
+        await view.initialize_view()
         await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)
 
     async def confirm_kick(self, interaction: discord.Interaction, player_id, reason):

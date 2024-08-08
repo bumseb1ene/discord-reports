@@ -239,3 +239,15 @@ class APIClient:
         except Exception as e:
             logging.error(f"Error posting comment '{comment}' for player {player_id}: {e}")
             return None
+
+    async def get_all_standard_message_config(self):
+        url = f'{self.base_url}/api/get_all_standard_message_config'
+        try:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    return data["result"]["StandardPunishmentMessagesUserConfig"]["messages"]
+        except Exception as e:
+            logging.error(f"Error fetching structured logs: {e}")
+            return None
