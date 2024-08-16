@@ -1,7 +1,7 @@
 import discord
 from discord.ui import Select, Button  # Import der Select Klasse
 from helpers import get_translation, get_author_name, set_author_name, add_modlog, add_check_to_messages, \
-    get_playername, add_emojis_to_messages, only_remove_buttons, get_logs, remove_emojis_to_messages
+    get_playername, add_emojis_to_messages, only_remove_buttons, get_logs, remove_emojis_to_messages, get_playername
 import logging
 import os
 
@@ -299,19 +299,25 @@ class Finish_Report_Button(discord.ui.View): # Create a class called MyView that
         await add_modlog(interaction, logmessage, player_id=False, user_lang=self.user_lang, api_client=self.api_client, add_entry=True)
 
 
+
+
 class ReasonSelect(discord.ui.View):
 
-    def __init__(self, user_lang, api_client, player_id):
+    def __init__(self, user_lang, api_client, player_id, action):
         super().__init__(timeout=600)
         self.user_lang = user_lang
         self.api_client = api_client
+        self.player_id = player_id
         self.reasons = []
+        self.action = action
+        self.player_name = ""
 
 
     async def initialize_view(self):
         select_label = get_translation(self.user_lang, "select_reason")
         reasons = await self.api_client.get_all_standard_message_config()
         self.reasons = reasons
+        self.player_name = await get_playername(self)
         selectinst = Select(placeholder=select_label)
         selectinst.min_values = 1
         selectinst.max_values = 1
@@ -321,9 +327,29 @@ class ReasonSelect(discord.ui.View):
                 reason = reason[:100]
             options.append(discord.SelectOption(label=reason, value=x))
         selectinst.options = options
-        selectinst.callback = self.select_callback
+        selectinst.callback = self.callback
         self.add_item(selectinst)
         pass
 
-    async def select_callback(self, interaction):
-        await interaction.response.send_message(f"Awesome! I like {select.values[0]} too!")
+    async def callback(self, interaction):
+        data = int(interaction.data["values"][0])
+        reason = self.reasons[data]
+        await interaction.response.send_modal(ReasonInput(reason, self.action, self.player_id, self.user_lang, self.api_client, self.player_name, title=get_translation(self.user_lang, "input_reason")))
+
+
+class ReasonInput(discord.ui.Modal):
+    def __init__(self, reason, action, player_id, user_lang, api_client, player_name, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.user_lang = user_lang
+        self.api_client = api_client
+        self.player_id = player_id
+        self.player_name = player_name
+        self.reason = []
+        self.action = action
+        # Je nach Aktion anderer Titel
+        self.add_item(discord.ui.InputText(label=get_translation(self.user_lang, "input_reason"),
+                                           style=discord.InputTextStyle.long))
+
+    async def callback(self, interaction: discord.Interaction):
+        reason = self.children[0].value
+        #await interaction.response.send_message(embeds=[embed])

@@ -292,7 +292,7 @@ class MyBot(commands.Bot):
         player_id = interaction.data['custom_id']
         original_message = interaction.message
         view = discord.ui.View(timeout=None)
-        view = ReasonSelect(user_lang, self.api_client, player_id)
+        view = ReasonSelect(user_lang, self.api_client, player_id, "kick")
         await view.initialize_view()
         await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)
 

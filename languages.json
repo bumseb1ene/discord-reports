@@ -100,7 +100,9 @@
         "log_manual": "{} is going to process the report manually.",
         "button_manual_process": "⚙\uFE0F Process manually",
         "report_finished": "✅Processing finished",
-        "no_reason_or_player": "Thank you for your report. However, in order for us to be able to process your message, it is necessary to specify a player and/or the problem. Write this after the admin command.\nExample: !admin superhero kills me\n\nThank you.\nThis is an automatically generated message."
+        "no_reason_or_player": "Thank you for your report. However, in order for us to be able to process your message, it is necessary to specify a player and/or the problem. Write this after the admin command.\nExample: !admin superhero kills me\n\nThank you.\nThis is an automatically generated message.",
+        "select_reason": "Select reason",
+        "input_reason": "Input reason"
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -205,6 +207,8 @@
         "report_finished": "✅Bearbeitung abgeschlossen",
         "has_finished_report": "{} hat die Bearbeitung abgeschlossen.",
         "no_reason_or_player": "Danke für deine Meldung. Damit wir deine Meldung allerdings bearbeiten können, ist die Angabe eines Spielers und/oder des Problems notwendig. Schreibe das nach dem Admin-Befehl.\nBeispiel: !admin superhero teamkillt mich\n\nVielen Dank.\nDies ist eine automatisch generierte Nachricht.",
-        "select_reason": "Begründung auswählen"
+        "select_reason": "Begründung auswählen",
+        "input_reason": "Begründung eingeben und bestätigen",
+        "confirm_action": "Aktion bestätigen"
     }
 }
