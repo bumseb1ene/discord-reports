@@ -56,7 +56,7 @@ class APIClient:
             logging.error(f"Error fetching detailed players data: {e}")
             return None
 
-    async def do_kick(self, player, player_id, reason, user_lang):
+    async def do_kick(self, player, player_id, reason):
         url = f'{self.base_url}/api/kick'
         data = {
             'player_name': player,
@@ -121,7 +121,7 @@ class APIClient:
             logging.error(f"Error fetching fast players data: {e}")
             return None
 
-    async def do_temp_ban(self, player, player_id, duration_hours, reason, by):
+    async def do_temp_ban(self, player, player_id, duration_hours, reason):
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/temp_ban'
@@ -130,7 +130,7 @@ class APIClient:
             'player_id': player_id,
             'duration_hours': duration_hours,
             'reason': reason,
-            'by': by
+            'by': "Admin"
         }
 
         try:
@@ -144,7 +144,7 @@ class APIClient:
             logging.error(f"Fehler beim Senden der Temp-Ban-Anfrage: {e}")
             return False
 
-    async def do_perma_ban(self, player, player_id, reason, by):
+    async def do_perma_ban(self, player, player_id, reason):
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/perma_ban'
@@ -152,7 +152,7 @@ class APIClient:
             'player_name': player,
             'player_id': player_id,
             'reason': reason,
-            'by': by
+            'by': 'Admin'
         }
 
         try:
@@ -166,7 +166,7 @@ class APIClient:
             logging.error(f"Fehler beim Senden der Perma-Ban-Anfrage: {e}")
             return False
 
-    async def add_blacklist_record(self, player_id, reason, by):
+    async def add_blacklist_record(self, player_id, reason):
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/perma_ban'
@@ -174,7 +174,7 @@ class APIClient:
             'player_id': player_id,
             "blacklist_id": "0",  # Default Blacklist
             'reason': reason,
-            'admin_name': by,
+            'admin_name': 'Admin',
 
         }
         try:
@@ -251,3 +251,26 @@ class APIClient:
         except Exception as e:
             logging.error(f"Error fetching structured logs: {e}")
             return None
+
+    async def do_punish(self, player_id, player_name, reason):
+        url = f'{self.base_url}/api/punish'
+        data = {
+            'player_name': player_name,
+            'reason': reason,
+            'by': "Admin",
+            'player_id': player_id
+        }
+        logging.info(f"Sending punish request to API: {data}")
+
+        try:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.post(url, json=data) as response:
+                    response_text = await response.text()
+                    logging.info(f"API response for punish: Status {response.status}, Body {response_text}")
+
+                    if response.status != 200:
+                        logging.error(f"Fehler beim Punishen des Spielers: {response.status}, Antwort: {response_text}")
+                        return False
+                    return True
+        except Exception as e:
+            logging.error(f"Error sending punish request: {e}")

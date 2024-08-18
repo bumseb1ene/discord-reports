@@ -12,7 +12,7 @@ from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, \
     set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs, \
     only_remove_buttons, get_playerid_from_name
-from modals import MessagePlayerButton, KickReasonSelect, Finish_Report_Button, ReasonSelect  # Importieren Sie das neue Modal und den Button
+from modals import MessagePlayerButton, Finish_Report_Button, ReasonSelect  # Importieren Sie das neue Modal und den Button
 import logging
 from messages import unitreportembed, Unitreportview, playerreportembed, player_not_found_embed, Playerreportview
 
@@ -208,6 +208,7 @@ class MyBot(commands.Bot):
             player_additional_data= await self.api_client.get_player_by_id(matching_player['player_id'])
             embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
             view = Unitreportview(self.api_client)
+            view.extras = []
             await view.add_buttons(user_lang, matching_player, player_additional_data, self.kick_button_callback, self.unjustified_report_click, self.no_action_click, self.manual_process)
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
@@ -269,7 +270,7 @@ class MyBot(commands.Bot):
 
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
-                view = Playerreportview(self.api_client)
+                view = Playerreportview(self.api_client, get_author_name())
                 await view.add_buttons(user_lang, best_match, best_player_data, self.kick_button_callback, self.unjustified_report_click, self.no_action_click, self.manual_process)
                 await response_message.edit(view=view)
             else:
@@ -290,53 +291,16 @@ class MyBot(commands.Bot):
 
     async def kick_button_callback(self, interaction: discord.Interaction):
         player_id = interaction.data['custom_id']
-        original_message = interaction.message
-        view = discord.ui.View(timeout=None)
-        view = ReasonSelect(user_lang, self.api_client, player_id, "kick")
+        players_data = await self.api_client.get_players()
+        if players_data and 'result' in players_data:
+            players_list = players_data['result']
+            author_name = get_author_name()
+            author_player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
+        else:
+            return
+        view = ReasonSelect(user_lang, self.api_client, player_id, "Kick", author_player["player_id"], get_author_name())
         await view.initialize_view()
         await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)
-
-    async def confirm_kick(self, interaction: discord.Interaction, player_id, reason):
-        player_name = await self.api_client.get_player_by_steam_id(player_id)
-
-        if player_name:
-            success = await self.api_client.do_kick(player_name, player_id, reason, user_lang)
-            if success:
-                kicked_message = get_translation(user_lang, "player_kicked_successfully").format(player_name)
-                await interaction.followup.send(kicked_message, ephemeral=True)
-
-                players_data = await self.api_client.get_players()
-                if players_data and 'result' in players_data:
-                    players_list = players_data['result']
-                    author_name = get_author_name()
-                    author_player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
-
-                    if author_player:
-                        player_id = author_player['player_id']
-                        message_to_author = get_translation(user_lang, "message_to_author_kicked").format(player_name)
-                        await self.api_client.do_message_player(author_name, player_id, message_to_author)
-                        try:
-                            author_user = await self.fetch_user(int(player_id))
-                            await author_user.send(message_to_author)
-                        except Exception as e:
-                            logging.error(f"Error sending message to author: {e}")
-                    else:
-                        logging.error(get_translation(user_lang, "author_not_found"))
-                else:
-                    logging.error("Failed to retrieve players list or 'result' not in players data.")
-            else:
-                await interaction.followup.send(get_translation(user_lang, "error_kicking_player"), ephemeral=True)
-        else:
-            await interaction.followup.send(get_translation(user_lang, "player_name_not_retrieved"), ephemeral=True)
-
-        try:
-            original_message = interaction.message
-            await original_message.add_reaction('✅')
-            await original_message.edit(view=None)  # Entferne die View (die das Dropdown enthält)
-        except discord.NotFound:
-            logging.error(get_translation(user_lang, "message_not_found_or_uneditable"))
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
 
 
     async def unjustified_report_click(self, interaction: discord.Interaction):

@@ -71,7 +71,7 @@
         "player_perma_banned_successfully": "Player {} has been permanently banned. Reason: {}.",
         "error_perma_banning_player": "Error in permanently banning the player.",
         "message_to_author_perma_banned": "The player you reported, {}, has been permanently banned.",
-        "message_player_modal_title": "Send a message to the player",
+        "message_player_modal_title": "Send message to {}",
         "message_label": "Message",
         "message_placeholder": "Enter your message here...",
         "message_sent_successfully": "Message sent successfully to {0}: {1}",
@@ -102,7 +102,18 @@
         "report_finished": "✅Processing finished",
         "no_reason_or_player": "Thank you for your report. However, in order for us to be able to process your message, it is necessary to specify a player and/or the problem. Write this after the admin command.\nExample: !admin superhero kills me\n\nThank you.\nThis is an automatically generated message.",
         "select_reason": "Select reason",
-        "input_reason": "Input reason"
+        "input_reason": "Input reason",
+        "kick_name_player": "Kick player {}",
+        "punish_name_player": "Punish player {}",
+        "tempban_name_player": "Ban player {} temporarily",
+        "perma_name_player": "Ban player {} permanently",
+        "confirm_action": "Confirm action",
+        "player_name": "Player: {}",
+        "action": "Action: {}",
+        "log_punish": "{} punished {}. Reason: {}",
+        "error_action": "General error when performing the action. Please contact your system administrator."
+
+
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -176,7 +187,7 @@
         "player_perma_banned_successfully": "Spieler {} wurde permanent gebannt. Grund: {}.",
         "error_perma_banning_player": "Fehler beim permanenten Bannen des Spielers.",
         "message_to_author_perma_banned": "Der von dir gemeldete Spieler {} wurde permanent gebannt.",
-        "message_player_modal_title": "Sende eine Nachricht",
+        "message_player_modal_title": "Sende Nachricht an {}",
         "message_label": "Nachricht",
         "message_placeholder": "Gib eine Nachricht ein...",
         "message_sent_successfully": "Nachricht erfolgreich gesendet an {}: {}",
@@ -209,6 +220,17 @@
         "no_reason_or_player": "Danke für deine Meldung. Damit wir deine Meldung allerdings bearbeiten können, ist die Angabe eines Spielers und/oder des Problems notwendig. Schreibe das nach dem Admin-Befehl.\nBeispiel: !admin superhero teamkillt mich\n\nVielen Dank.\nDies ist eine automatisch generierte Nachricht.",
         "select_reason": "Begründung auswählen",
         "input_reason": "Begründung eingeben und bestätigen",
-        "confirm_action": "Aktion bestätigen"
+        "confirm_action": "Aktion bestätigen",
+        "kick_name_player": "Spieler {} kicken",
+        "punish_name_player": "Spieler {} punishen",
+        "tempban_name_player": "Spieler {} temporär sperren",
+        "perma_name_player": "Spieler {} permanent sperren",
+        "player_name": "Spieler: {}",
+        "action": "Aktion: {}",
+        "log_punish": "{} hat {} bestraft. Grund: {}",
+        "punish_confirmed": "Punish erfolgreich durchgeführt.",
+        "error_action": "Allgemeiner Fehler beim Durchführen der Aktion. Bitte wende dich an deinen System-Administrator."
+
+
     }
 }

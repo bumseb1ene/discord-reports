@@ -142,7 +142,7 @@ class Playerreportview(discord.ui.View):
                                                                      custom_id=f"message_reported_player_{best_player_data['player_id']}",
                                                                      api_client=self.api_client,
                                                                      player_id=best_player_data['player_id'],
-                                                                     user_lang=user_lang)
+                                                                     user_lang=user_lang, )
         self.add_item(message_reported_player_button)
 
         temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(best_match)
