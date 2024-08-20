@@ -128,7 +128,7 @@ class APIClient:
         data = {
             'player_name': player,
             'player_id': player_id,
-            'duration_hours': duration_hours,
+            'duration_hours': int(duration_hours),
             'reason': reason,
             'by': "Admin"
         }

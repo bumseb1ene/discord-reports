@@ -14,7 +14,7 @@ from helpers import remove_markdown, remove_bracketed_content, find_player_names
     only_remove_buttons, get_playerid_from_name
 from modals import MessagePlayerButton, Finish_Report_Button, ReasonSelect  # Importieren Sie das neue Modal und den Button
 import logging
-from messages import unitreportembed, Unitreportview, playerreportembed, player_not_found_embed, Playerreportview
+from messages import unitreportembed, playerreportembed, player_not_found_embed, Reportview
 
 # Konfiguration des Loggings
 logging.basicConfig(filename='bot_log.txt', level=logging.DEBUG,  # Level auf DEBUG gesetzt
@@ -207,9 +207,8 @@ class MyBot(commands.Bot):
         if matching_player:
             player_additional_data= await self.api_client.get_player_by_id(matching_player['player_id'])
             embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
-            view = Unitreportview(self.api_client)
-            view.extras = []
-            await view.add_buttons(user_lang, matching_player, player_additional_data, self.kick_button_callback, self.unjustified_report_click, self.no_action_click, self.manual_process)
+            view = Reportview(self.api_client)
+            await view.add_buttons(user_lang, matching_player['name'], player_additional_data['player_id'], self.unjustified_report_click, self.no_action_click, self.manual_process)
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
         else:
@@ -270,37 +269,24 @@ class MyBot(commands.Bot):
 
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
-                view = Playerreportview(self.api_client, get_author_name())
-                await view.add_buttons(user_lang, best_match, best_player_data, self.kick_button_callback, self.unjustified_report_click, self.no_action_click, self.manual_process)
+                view = Reportview(self.api_client)
+                await view.add_buttons(user_lang, best_match, best_player_data['player_id'], self.unjustified_report_click, self.no_action_click, self.manual_process)
                 await response_message.edit(view=view)
             else:
-                await self.player_not_found(message, get_translation(user_lang, "no_matching_player_found"))
+                await self.player_not_found(message)
         else:
-            await self.player_not_found(message, get_translation(user_lang, "no_matching_player_found"))
+            await self.player_not_found(message)
 
-    async def player_not_found(self, message, text):
+    async def player_not_found(self, message):
         author_name = get_author_name()
         view = View(timeout=None)
-        message_author_button_label = get_translation(user_lang, "message_player").format(author_name)
-        message_author_button = MessagePlayerButton(label=message_author_button_label,
-                                                    custom_id=f"message_player_{author_name}",
-                                                    api_client=self.api_client, player_id=None, user_lang=user_lang)
-        embed = await player_not_found_embed(text)
-        view.add_item(message_author_button)
+        view = Reportview(self.api_client)
+        name = get_author_name()
+        player_id = await get_playerid_from_name(name, self.api_client)
+        await view.add_buttons(user_lang, get_author_name(), player_id, self.unjustified_report_click, self.no_action_click,
+                               self.manual_process, self_report=True)
+        embed = await player_not_found_embed(player_id, author_name, user_lang)
         await message.reply(embed=embed, view=view)
-
-    async def kick_button_callback(self, interaction: discord.Interaction):
-        player_id = interaction.data['custom_id']
-        players_data = await self.api_client.get_players()
-        if players_data and 'result' in players_data:
-            players_list = players_data['result']
-            author_name = get_author_name()
-            author_player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
-        else:
-            return
-        view = ReasonSelect(user_lang, self.api_client, player_id, "Kick", author_player["player_id"], get_author_name())
-        await view.initialize_view()
-        await interaction.response.send_message(get_translation(user_lang, "select_kick_reason"), view=view, ephemeral=True)
 
 
     async def unjustified_report_click(self, interaction: discord.Interaction):

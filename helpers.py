@@ -78,7 +78,7 @@ async def add_modlog(interaction, logmessage, player_id, user_lang, api_client, 
         original_message = await interaction.channel.fetch_message(interaction.message.id)
     new_embed = original_message.embeds[0]
     if not add_entry:
-        new_embed.add_field(name=get_translation(user_lang, "logbook"),value=logmessage)
+        new_embed.add_field(name=get_translation(user_lang, "logbook"),value=logmessage, inline=False)
     else:
         value = new_embed.fields[-1].value + "\n" + logmessage
         new_embed.set_field_at(index=-1, name=new_embed.fields[-1].name, value=value)
@@ -112,12 +112,12 @@ async def add_emojis_to_messages(interaction, emoji = '⚠️'):
     reportmessage = await original_message.channel.fetch_message(original_message.reference.message_id)
     await reportmessage.add_reaction(emoji)
 
-async def get_playername(self):
-    player_name = await self.api_client.get_player_by_steam_id(self.player_id)
+async def get_playername(player_id, api_client):
+    player_name = await api_client.get_player_by_steam_id(player_id)
     if player_name:
         name = player_name
     else:
-        name = self.player_id
+        name = player_id
     return name
 
 
