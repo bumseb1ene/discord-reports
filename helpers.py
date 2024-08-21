@@ -55,6 +55,11 @@ def load_excluded_words(file_path):
         data = json.load(file)
     return data.get("exclude", [])
 
+def load_autorespond_tigger(file_path):
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+    return data
+
 def remove_clantags(name):
     # Entfernen von Clantags mit bis zu 4 Zeichen in eckigen Klammern oder zwischen | |
     # sowie der spezifischen Kombination i|i

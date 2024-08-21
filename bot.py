@@ -11,7 +11,7 @@ from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, \
     set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs, \
-    only_remove_buttons, get_playerid_from_name
+    only_remove_buttons, get_playerid_from_name, load_autorespond_tigger
 from modals import MessagePlayerButton, Finish_Report_Button, ReasonSelect  # Importieren Sie das neue Modal und den Button
 import logging
 from messages import unitreportembed, playerreportembed, player_not_found_embed, Reportview
@@ -31,8 +31,6 @@ USERNAME = os.getenv('RCON_USERNAME')
 PASSWORD = os.getenv('RCON_PASSWORD')
 MAX_SERVERS = int(os.getenv('MAX_SERVERS'))
 user_lang = os.getenv('USER_LANG', 'en')  # Standardwert auf 'en' gesetzt
-ADMIN_COMMAND = os.getenv("ADMIN_COMMAND")
-ADMIN_COMMAND_ARGUMENTS = os.getenv("ADMIN_COMMAND_ARGUMENTS")
 
 # Setting up Discord client
 intents = discord.Intents.default()
@@ -48,6 +46,7 @@ class MyBot(commands.Bot):
         self.api_base_url = None
         self.api_logged_in = False
         self.excluded_words = load_excluded_words('exclude_words.json')
+        self.autorespond_trigger = load_autorespond_tigger('autorespond_trigger.json')
 
     async def login_to_api(self, api_base_url):
         if not self.api_logged_in or self.api_base_url != api_base_url:
@@ -134,7 +133,7 @@ class MyBot(commands.Bot):
             if not "clean_description" in locals():
                 return
 
-            if clean_description.lower() == ADMIN_COMMAND or clean_description.lower() == ADMIN_COMMAND_ARGUMENTS:
+            if clean_description.lower() in self.autorespond_trigger:
                 author_name = get_author_name()
                 playerid = await get_playerid_from_name(get_author_name(), api_client=self.api_client)
                 message_content = get_translation(user_lang, "no_reason_or_player")
