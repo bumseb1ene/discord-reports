@@ -2,7 +2,7 @@ import discord
 from discord.ui import Select, Button
 from helpers import get_translation, get_author_name, add_modlog, add_check_to_messages, \
     add_emojis_to_messages, only_remove_buttons, get_logs, remove_emojis_to_messages, get_playername
-
+from datetime import datetime, timedelta
 
 class MessageReportedPlayerButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, author_name, self_report):
@@ -299,7 +299,7 @@ class ReasonSelect(discord.ui.View):
         selectinst.max_values = 1
         options = []
         options.append(discord.SelectOption(label=get_translation(self.user_lang, "own_reason"), value="empty"))
-        if len(reasons) != 0:
+        if reasons[0] != '' and len(reasons) > 1:
             for x, reason in enumerate(reasons):
                 if len(reason) > 100:
                     reason = reason[:100]
@@ -484,8 +484,9 @@ async def perform_action(action, reason, player_name, player_id, author_name, au
             good_result = False
             confirmation_message = get_translation(user_lang, "player_name_not_retrieved")
     elif action == "Temp-Ban":
-        success = await api_client.do_temp_ban(player_name, player_id, duration, reason)
-
+        expire_time = datetime.utcnow() + timedelta(hours=int(duration))
+        expires_at = expire_time.strftime("%Y-%m-%dT%H:%M")
+        success = await api_client.add_blacklist_record(player_id, reason, expires_at)
         if success:
             confirmation_message = get_translation(user_lang, "player_temp_banned_successfully").format(
                 player_name, duration, reason)
@@ -502,7 +503,6 @@ async def perform_action(action, reason, player_name, player_id, author_name, au
                                                                        duration, reason)
 
     elif action == "Perma-Ban":
-        await api_client.do_perma_ban(player_name, player_id, reason)
         success = await api_client.add_blacklist_record(player_id, reason)
         if success:
             confirmation_message = get_translation(user_lang, "player_perma_banned_successfully").format(
@@ -524,5 +524,5 @@ async def perform_action(action, reason, player_name, player_id, author_name, au
         await add_check_to_messages(interaction, original_report_message)
     else:
         await interaction.followup.send(confirmation_message, ephemeral=True)
-        await add_emojis_to_messages(interaction)
+        await add_emojis_to_messages(interaction, original_report_message)
         await only_remove_buttons(interaction)

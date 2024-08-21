@@ -164,15 +164,16 @@ class APIClient:
             logging.error(f"Fehler beim Senden der Perma-Ban-Anfrage: {e}")
             return False
 
-    async def add_blacklist_record(self, player_id, reason):
+    async def add_blacklist_record(self, player_id, reason, expires_at=None):
         if not self.session:
             await self.create_session()
-        url = f'{self.base_url}/api/perma_ban'
+        url = f'{self.base_url}/api/add_blacklist_record'
         data = {
             'player_id': player_id,
             "blacklist_id": "0",  # Default Blacklist
             'reason': reason,
             'admin_name': 'Admin',
+            'expires_at': expires_at
 
         }
         try:
