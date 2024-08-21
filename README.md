@@ -116,9 +116,9 @@ Important: The bot may sometimes provide incorrect messages as the input depends
 3. **.env File Example**:
    ```
    DISCORD_BOT_TOKEN=
-   RCON_USERNAME=
-   RCON_PASSWORD=
-   RCON_API_TOKEN=
+   USERNAME=
+   PASSWORD=
+   API_TOKEN=
    ALLOWED_CHANNEL_ID=
    USER_LANG=de
    MAX_COMBINED_SCORE_THRESHOLD=1.1
