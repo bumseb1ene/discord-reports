@@ -6,4 +6,6 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
-      - ./Map.json:/app/Map.json
+      - ./autorespond_trigger.json:/app/autorespond_trigger.json
+      - ./exclude_words.json:/app/exclude_words.json
+      - ./languages.json:/app/languages.json
