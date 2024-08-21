@@ -1,0 +1,9 @@
+services:
+  hll-mapbot:
+    container_name: hll-discord-reports
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./Map.json:/app/Map.json
