@@ -16,31 +16,29 @@ Important: The bot may sometimes provide incorrect messages as the input depends
 
 - Python 3.8 or higher.
 - `discord.py` library.
-- Additional dependencies: `python-dotenv`.
+- Additional dependencies listed in requirements.txt
 - [CRCON](https://github.com/MarechJ/hll_rcon_tool)
 
 ## Installation
 
 1. **Python**: Ensure Python 3.8 or higher is installed on your system. Download from [python.org](https://www.python.org/downloads/).
 
-2. **Dependencies**: Install the required libraries using pip:
-   ```bash
-   pip install discord.py
-   pip install python-dotenv
-   ```
-3. Create a new user:
+2. Create a new user:
    ```bash
    sudo adduser yourusername  # Create a new user
    su - yourusername          # Switch to the new user
 
    ```
-4. Create a Project Folder and Clone the GitHub Repository:
+3. Create a Project Folder and Clone the GitHub Repository:
    ```bash
    mkdir bot-directory        # Create a new directory for the bot
    cd bot-directory           # Change to the bot directory
    git clone https://github.com/bumseb1ene/discord-reports.git  # Clone the GitHub repository
    ```
-
+4. **Dependencies**: Install the required libraries using pip:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Configuration
 
