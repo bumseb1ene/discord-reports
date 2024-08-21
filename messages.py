@@ -2,8 +2,7 @@ import discord
 from discord.ui import View, Button
 from helpers import get_translation, get_author_name, get_playerid_from_name
 from modals import TempBanButton, MessagePlayerButton, MessageReportedPlayerButton, Show_logs_button, PermaBanButton, \
-    PunishButton, KickButton
-import random
+    PunishButton, KickButton, Unjustified_Report, No_Action_Button, Manual_process
 
 
 async def unitreportembed(player_additional_data, user_lang, unit_name, roles, team, player):
@@ -69,8 +68,7 @@ class Reportview(discord.ui.View):
         # Step 3
         await self.message.edit(view=self)
 
-    async def add_buttons(self, user_lang, reported_player_name, player_id, funct_unjustified_report_click,
-                          funct_no_action_click, manual_process, self_report=False):
+    async def add_buttons(self, user_lang, reported_player_name, player_id, self_report=False):
         if self_report == False:
             author_name = get_author_name()
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
@@ -124,20 +122,14 @@ class Reportview(discord.ui.View):
                                                         user_lang=user_lang, self_report=self_report)
             self.add_item(message_player_button)
         # Mimimi
-        unjustified_report_button = Button(label=get_translation(user_lang, "unjustified_report"),
-                                           style=discord.ButtonStyle.grey, custom_id="unjustified_report")
-        unjustified_report_button.callback = funct_unjustified_report_click
+        unjustified_report_button = Unjustified_Report(author_name, author_player_id, user_lang, self.api_client)
         self.add_item(unjustified_report_button)
         # Müll
-        no_action_button = Button(label=get_translation(user_lang, "wrong_player_reported"),
-                                  style=discord.ButtonStyle.grey,
-                                  custom_id="no_action")
-        no_action_button.callback = funct_no_action_click
+        no_action_button = No_Action_Button(user_lang, self.api_client)
         self.add_item(no_action_button)
+        # Show Logs
         show_logs_buttonobj = Show_logs_button(self, reported_player_name, custom_id="logs", user_lang=user_lang)
         self.add_item(show_logs_buttonobj)
-        manual_process_button = Button(label=get_translation(user_lang, "button_manual_process"),
-                                       style=discord.ButtonStyle.grey,
-                                       custom_id="manual_process")
-        manual_process_button.callback = manual_process
+        # Manual Process
+        manual_process_button = Manual_process(user_lang, self.api_client)
         self.add_item(manual_process_button)

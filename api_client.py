@@ -1,7 +1,5 @@
 import aiohttp
 import logging
-from helpers import get_translation
-from dotenv import load_dotenv
 import json
 
 class APIClient:

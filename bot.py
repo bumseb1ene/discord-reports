@@ -10,9 +10,8 @@ from api_client import APIClient  # Assuming this is the same as provided earlie
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
 from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, \
-    set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, get_logs, \
+    set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, \
     only_remove_buttons, get_playerid_from_name, load_autorespond_tigger
-from modals import MessagePlayerButton, Finish_Report_Button, ReasonSelect  # Importieren Sie das neue Modal und den Button
 import logging
 from messages import unitreportembed, playerreportembed, player_not_found_embed, Reportview
 
@@ -207,13 +206,11 @@ class MyBot(commands.Bot):
             player_additional_data= await self.api_client.get_player_by_id(matching_player['player_id'])
             embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
             view = Reportview(self.api_client)
-            await view.add_buttons(user_lang, matching_player['name'], player_additional_data['player_id'], self.unjustified_report_click, self.no_action_click, self.manual_process)
+            await view.add_buttons(user_lang, matching_player['name'], player_additional_data['player_id'])
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
         else:
-            # Verwenden des vorhandenen MessagePlayerButton, um dem Absender zu antworten
-            author_name = get_author_name()
-            await self.player_not_found(message, get_translation(user_lang, "no_players_found").format(unit_name, ', '.join(roles), team))
+            await self.player_not_found(message)
         logging.info(get_translation(user_lang, "response_sent").format(unit_name, ', '.join(roles), team))
 
     async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=3, jaro_winkler_threshold=0.85):
@@ -269,7 +266,7 @@ class MyBot(commands.Bot):
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
                 view = Reportview(self.api_client)
-                await view.add_buttons(user_lang, best_match, best_player_data['player_id'], self.unjustified_report_click, self.no_action_click, self.manual_process)
+                await view.add_buttons(user_lang, best_match, best_player_data['player_id'])
                 await response_message.edit(view=view)
             else:
                 await self.player_not_found(message)
@@ -282,67 +279,9 @@ class MyBot(commands.Bot):
         view = Reportview(self.api_client)
         name = get_author_name()
         player_id = await get_playerid_from_name(name, self.api_client)
-        await view.add_buttons(user_lang, get_author_name(), player_id, self.unjustified_report_click, self.no_action_click,
-                               self.manual_process, self_report=True)
+        await view.add_buttons(user_lang, get_author_name(), player_id, self_report=True)
         embed = await player_not_found_embed(player_id, author_name, user_lang)
         await message.reply(embed=embed, view=view)
-
-
-    async def unjustified_report_click(self, interaction: discord.Interaction):
-        print("Unjustified report click triggered")
-
-        new_view = discord.ui.View(timeout=None)
-        await interaction.message.edit(view=new_view)
-        print("Kick buttons removed")
-
-        await add_emojis_to_messages(interaction, '❌')
-        print("Reactions updated")
-
-        confirm_message = get_translation(user_lang, "unjustified_report_acknowledged")
-        await interaction.response.send_message(confirm_message, ephemeral=True)
-        print("Confirmation message sent")
-
-        author_name = get_author_name()
-        print(f"Using extracted author name: {author_name}")
-
-        players_data = await self.api_client.get_players()
-        if players_data and 'result' in players_data:
-            players_list = players_data['result']
-            player = next((p for p in players_list if p['name'].lower() == author_name.lower()), None)
-            if player:
-                player_id = player['player_id']
-                message_to_send = get_translation(user_lang, "report_not_granted")
-                await self.api_client.do_message_player(author_name, player_id, message_to_send)
-                modlog = get_translation(user_lang, "log_unjustified").format(interaction.user.display_name)
-                await add_modlog(interaction, modlog, False, user_lang, self.api_client)
-            else:
-                logging.error(f"Player {author_name} not found.")
-        else:
-            logging.error("Failed to retrieve players list or 'result' not in players_data.")
-
-
-
-    async def no_action_click(self, interaction: discord.Interaction):
-        # Entfernen aller Buttons aus der Nachricht
-        await only_remove_buttons(interaction)
-        modlog = get_translation(user_lang, "log_no-action").format(interaction.user.display_name)
-        await add_modlog(interaction, modlog, False, user_lang, self.api_client)
-        # Optional: Senden einer Bestätigungsnachricht
-        confirm_message = get_translation(user_lang, "no_action_performed")
-        await interaction.response.send_message(confirm_message, ephemeral=True)
-        # Hinzufügen des Mülleimers als Reaktion
-        await add_emojis_to_messages(interaction, '🗑')
-
-    async def manual_process(self, interaction: discord.Interaction):
-        view = Finish_Report_Button(user_lang=user_lang, api_client=self.api_client)
-        modlog = get_translation(user_lang, "log_manual").format(interaction.user.display_name)
-        await interaction.message.edit(view=view)
-        await add_modlog(interaction, modlog, False, user_lang, self.api_client, delete_buttons=False)
-        # Optional: Senden einer Bestätigungsnachricht
-        confirm_message = get_translation(user_lang, "manual_process_respond")
-        await interaction.response.send_message(confirm_message, ephemeral=True)
-        await add_emojis_to_messages(interaction, '👀')
-
 
 
     async def on_close(self):

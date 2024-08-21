@@ -86,7 +86,7 @@ async def add_modlog(interaction, logmessage, player_id, user_lang, api_client, 
         new_embed.add_field(name=get_translation(user_lang, "logbook"),value=logmessage, inline=False)
     else:
         value = new_embed.fields[-1].value + "\n" + logmessage
-        new_embed.set_field_at(index=-1, name=new_embed.fields[-1].name, value=value)
+        new_embed.set_field_at(index=-1, name=new_embed.fields[-1].name, value=value, inline=False)
     if delete_buttons:
         await original_message.edit(view=None, embed=new_embed)
     else:

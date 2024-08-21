@@ -1,9 +1,26 @@
 import discord
-from discord.ui import Select, Button  # Import der Select Klasse
-from helpers import get_translation, get_author_name, set_author_name, add_modlog, add_check_to_messages, \
-    get_playername, add_emojis_to_messages, only_remove_buttons, get_logs, remove_emojis_to_messages, get_playername
-import logging
-import os
+from discord.ui import Select, Button
+from helpers import get_translation, get_author_name, add_modlog, add_check_to_messages, \
+    add_emojis_to_messages, only_remove_buttons, get_logs, remove_emojis_to_messages, get_playername
+
+
+class MessageReportedPlayerButton(discord.ui.Button):
+    def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, author_name, self_report):
+        super().__init__(style=discord.ButtonStyle.grey, label=label, custom_id=custom_id)
+        self.api_client = api_client
+        self.player_id = player_id
+        self.user_lang = user_lang
+        self.author_player_id = author_player_id
+        self.author_name = author_name
+        self.self_report = self_report
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        view = ReasonSelect(self.user_lang, self.api_client, self.player_id, "Message", self.author_player_id, self.author_name, interaction.message, self.self_report)
+        await view.initialize_view()
+        await interaction.followup.send(get_translation(self.user_lang, "message_placeholder"), view=view,
+                                                ephemeral=True)
+
 
 class PunishButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, self_report):
@@ -144,22 +161,45 @@ class MessagePlayerButton(discord.ui.Button):
         await interaction.response.send_modal(modal)
 
 
-class MessageReportedPlayerButton(discord.ui.Button):
-    def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, author_name, self_report):
-        super().__init__(style=discord.ButtonStyle.grey, label=label, custom_id=custom_id)
-        self.api_client = api_client
-        self.player_id = player_id
-        self.user_lang = user_lang
-        self.author_player_id = author_player_id
+class Unjustified_Report(discord.ui.Button):
+    def __init__(self, author_name, author_id, user_lang, api_client):
+        super().__init__(style=discord.ButtonStyle.grey, label=get_translation(user_lang, "unjustified_report"), custom_id="unjustified_report")
         self.author_name = author_name
-        self.self_report = self_report
+        self.author_id = author_id
+        self.user_lang = user_lang
+        self.api_client = api_client
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        view = ReasonSelect(self.user_lang, self.api_client, self.player_id, "Message", self.author_player_id, self.author_name, interaction.message, self.self_report)
-        await view.initialize_view()
-        await interaction.followup.send(get_translation(self.user_lang, "message_placeholder"), view=view,
-                                                ephemeral=True)
+        new_view = discord.ui.View(timeout=None)
+        await interaction.message.edit(view=new_view)
+        await add_emojis_to_messages(interaction, '❌')
+        confirm_message = get_translation(self.user_lang, "unjustified_report_acknowledged")
+        await interaction.response.send_message(confirm_message, ephemeral=True)
+
+        if self.author_id:
+            message_to_send = get_translation(self.user_lang, "report_not_granted")
+            await self.api_client.do_message_player(self.author_name, self.author_id, message_to_send)
+            modlog = get_translation(self.user_lang, "log_unjustified").format(interaction.user.display_name)
+            await add_modlog(interaction, modlog, False, self.user_lang, self.api_client)
+
+
+class No_Action_Button(discord.ui.Button):
+    def __init__(self, user_lang, api_client):
+        super().__init__(label=get_translation(user_lang, "wrong_player_reported"),
+                                  style=discord.ButtonStyle.grey,
+                                  custom_id="no_action")
+        self.user_lang = user_lang
+        self.api_client = api_client
+
+    async def callback(self, interaction: discord.Interaction):
+        await only_remove_buttons(interaction)
+        modlog = get_translation(self.user_lang, "log_no-action").format(interaction.user.display_name)
+        await add_modlog(interaction, modlog, False, self.user_lang, self.api_client)
+        # Optional: Senden einer Bestätigungsnachricht
+        confirm_message = get_translation(self.user_lang, "no_action_performed")
+        await interaction.response.send_message(confirm_message, ephemeral=True)
+        # Hinzufügen des Mülleimers als Reaktion
+        await add_emojis_to_messages(interaction, '🗑')
 
 
 class Show_logs_button(discord.ui.Button):
@@ -183,6 +223,24 @@ class Show_logs_button(discord.ui.Button):
         emb = interaction.message.embeds[0]
         await interaction.message.edit(embed=emb, view=self.msg_view)
 
+
+class Manual_process(discord.ui.Button):
+    def __init__(self, user_lang, api_client):
+        super().__init__(label=get_translation(user_lang, "button_manual_process"),
+                                       style=discord.ButtonStyle.grey,
+                                       custom_id="manual_process")
+        self.user_lang = user_lang
+        self.api_client = api_client
+
+    async def callback(self, interaction: discord.Interaction):
+        view = Finish_Report_Button(user_lang=self.user_lang, api_client=self.api_client)
+        modlog = get_translation(self.user_lang, "log_manual").format(interaction.user.display_name)
+        await interaction.message.edit(view=view)
+        await add_modlog(interaction, modlog, False, self.user_lang, self.api_client, delete_buttons=False)
+        # Optional: Senden einer Bestätigungsnachricht
+        confirm_message = get_translation(self.user_lang, "manual_process_respond")
+        await interaction.response.send_message(confirm_message, ephemeral=True)
+        await add_emojis_to_messages(interaction, '👀')
 
 class Finish_Report_Button(discord.ui.View):  # Create a class called MyView that subclasses discord.ui.View
     def __init__(self, user_lang, api_client):
