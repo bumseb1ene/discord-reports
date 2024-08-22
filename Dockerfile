@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Führen Sie das Skript beim Start des Containers aus
-CMD ["python", "./bot.py"]
+CMD ["python","-u","./bot.py"]

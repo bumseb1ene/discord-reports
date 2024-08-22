@@ -1,0 +1,11 @@
+services:
+  hll-mapbot:
+    container_name: hll-discord-reports
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./autorespond_trigger.json:/app/autorespond_trigger.json
+      - ./exclude_words.json:/app/exclude_words.json
+      - ./languages.json:/app/languages.json
