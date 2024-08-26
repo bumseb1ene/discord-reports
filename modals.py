@@ -299,11 +299,14 @@ class ReasonSelect(discord.ui.View):
         selectinst.max_values = 1
         options = []
         options.append(discord.SelectOption(label=get_translation(self.user_lang, "own_reason"), value="empty"))
+        entries = 1
         if reasons[0] != '' and len(reasons) > 1:
             for x, reason in enumerate(reasons):
                 if len(reason) > 100:
                     reason = reason[:100]
-                options.append(discord.SelectOption(label=reason, value=str(x)))
+                if len(reason) > 0 and entries < 25:
+                    options.append(discord.SelectOption(label=reason, value=str(x)))
+                    entries = entries + 1
         selectinst.options = options
         selectinst.callback = self.callback
         self.add_item(selectinst)
