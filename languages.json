@@ -85,7 +85,8 @@
         "trolls_not_tolerated": "Trolls are not tolerated",
         "insults_not_tolerated": "Insults are not tolerated",
         "cheating": "Cheating is not tolerated",
-        "spamming": "Spamming is not tolerated"
+        "spamming": "Spamming is not tolerated",
+        "afk": "You have been kicked for inactivity"
     
     },
     "de": {
@@ -174,6 +175,7 @@
         "trolls_not_tolerated": "Trolls werden nicht toleriert",
         "insults_not_tolerated": "Beleidigungen werden nicht toleriert",
         "cheating": "Cheating wird nicht toleriert",
-        "spamming": "Spamming wird nicht toleriert"
+        "spamming": "Spamming wird nicht toleriert",
+        "afk": "Du wurdest wegen Inaktivität gekickt"
     }
 }

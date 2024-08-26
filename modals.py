@@ -191,6 +191,7 @@ class KickReasonSelect(Select):
             discord.SelectOption(label=get_translation(user_lang, "insults_not_tolerated"), value=get_translation(user_lang, "insults_not_tolerated")),
             discord.SelectOption(label=get_translation(user_lang, "cheating"), value=get_translation(user_lang, "cheating")),
             discord.SelectOption(label=get_translation(user_lang, "spamming"), value=get_translation(user_lang, "spamming")),
+            discord.SelectOption(label=get_translation(user_lang, "afk"), value=get_translation(user_lang, "afk")),
         ]
         super().__init__(placeholder=get_translation(user_lang, "select_kick_reason"), min_values=1, max_values=1, options=options)
         self.steam_id_64 = steam_id_64
