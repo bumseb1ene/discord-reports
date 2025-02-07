@@ -33,6 +33,7 @@ class APIClient:
             return True
 
     async def get_player_data(self, player_id):
+        """Beispiel-Endpunkt zum Abfragen von Live-Stats."""
         url = f'{self.base_url}/api/get_live_game_stats'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -41,9 +42,11 @@ class APIClient:
                         return None
                     return await response.json()
         except Exception as e:
+            logging.error(f"Error in get_player_data: {e}")
             return None
 
     async def get_detailed_players(self):
+        """Detaillierte Daten zu allen Spielern."""
         url = f'{self.base_url}/api/get_detailed_players'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -55,6 +58,7 @@ class APIClient:
             return None
 
     async def do_kick(self, player, player_id, reason):
+        """Spieler kicken."""
         url = f'{self.base_url}/api/kick'
         data = {
             'player_name': player,
@@ -78,8 +82,8 @@ class APIClient:
             logging.error(f"Error sending kick request: {e}")
             return False
 
-
     async def get_player_by_steam_id(self, player_id):
+        """Spielername anhand einer Steam-ID holen (Beispiel)."""
         url = f'{self.base_url}/api/get_player_profile?player_id={player_id}'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -95,6 +99,7 @@ class APIClient:
             return None
 
     async def get_player_by_id(self, player_id):
+        """Komplette Player-Daten anhand ID."""
         url = f'{self.base_url}/api/get_player_profile?player_id={player_id}'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -109,6 +114,7 @@ class APIClient:
             return None
 
     async def get_players(self):
+        """Schnelle Liste aller aktuell bekannten Spieler."""
         url = f'{self.base_url}/api/get_players'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
@@ -120,6 +126,7 @@ class APIClient:
             return None
 
     async def do_temp_ban(self, player, player_id, duration_hours, reason):
+        """Beispiel: Spieler temporär bannen (alter Endpunkt, optional)."""
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/temp_ban'
@@ -143,6 +150,7 @@ class APIClient:
             return False
 
     async def do_perma_ban(self, player, player_id, reason):
+        """Beispiel: Spieler permanent bannen (alter Endpunkt, optional)."""
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/perma_ban'
@@ -165,6 +173,9 @@ class APIClient:
             return False
 
     async def add_blacklist_record(self, player_id, reason, expires_at=None):
+        """
+        Fügt einen Blacklist-Eintrag hinzu, z.B. für Temp- oder Perma-Bans.
+        """
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/add_blacklist_record'
@@ -174,7 +185,6 @@ class APIClient:
             'reason': reason,
             'admin_name': 'Admin',
             'expires_at': expires_at
-
         }
         try:
             async with self.session.post(url, json=data) as response:
@@ -184,10 +194,11 @@ class APIClient:
                     return False
                 return True
         except Exception as e:
-            logging.error(f"Fehler beim Senden der Perma-Ban-Anfrage: {e}")
+            logging.error(f"Fehler beim Senden der Blacklist-Anfrage: {e}")
             return False
 
     async def do_message_player(self, player, player_id, message):
+        """Sendet eine Nachricht an einen Spieler."""
         url = f'{self.base_url}/api/message_player'
         data = {
             "player_name": player,
@@ -204,6 +215,9 @@ class APIClient:
             return None
 
     async def get_structured_logs(self, since_min_ago, filter_action=None, filter_player=None):
+        """
+        Strukturierte Logs abrufen.
+        """
         url = f'{self.base_url}/api/get_structured_logs'
         params = {
             "since_min_ago": since_min_ago,
@@ -225,6 +239,7 @@ class APIClient:
             return None
 
     async def post_player_comment(self, player_id, comment):
+        """Kommentar zu einem Spieler posten."""
         url = f'{self.base_url}/api/post_player_comment'
         data = {
             "player_id": player_id,
@@ -239,19 +254,31 @@ class APIClient:
             logging.error(f"Error posting comment '{comment}' for player {player_id}: {e}")
             return None
 
-    async def get_all_standard_message_config(self):
-        url = f'{self.base_url}/api/get_all_standard_message_config'
+    async def get_all_message_templates(self):
+        """
+        Ruft alle Nachrichtenvorlagen vom neuen Endpunkt /api/get_all_message_templates ab.
+        Gibt ein Dictionary der Form zurück:
+        {
+            "MESSAGE": [...],
+            "REASON": [...],
+            "WELCOME": [...],
+            "BROADCAST": [...]
+        }
+        oder {} bei Fehler.
+        """
+        url = f'{self.base_url}/api/get_all_message_templates'
         try:
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(url) as response:
                     response.raise_for_status()
                     data = await response.json()
-                    return data["result"]["StandardPunishmentMessagesUserConfig"]["messages"]
+                    return data["result"]
         except Exception as e:
-            logging.error(f"Error fetching structured logs: {e}")
-            return None
+            logging.error(f"Error fetching message templates: {e}")
+            return {}
 
     async def do_punish(self, player_id, player_name, reason):
+        """Spieler mit dem /api/punish-Endpunkt bestrafen (Punish)."""
         url = f'{self.base_url}/api/punish'
         data = {
             'player_name': player_name,
@@ -273,3 +300,4 @@ class APIClient:
                     return True
         except Exception as e:
             logging.error(f"Error sending punish request: {e}")
+            return False
