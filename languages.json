@@ -235,7 +235,7 @@
         "log_punish": "{} hat {} bestraft. Grund: {}",
         "punish_confirmed": "Punish erfolgreich durchgeführt.",
         "error_action": "Allgemeiner Fehler beim Durchführen der Aktion. Bitte wende dich an deinen System-Administrator.",
-        "reason": "Begründung",
+        "reason": "Grund",
         "own_reason": "<Eigene Eingabe>",
         "punish_button_label": "\uD83D\uDC80 Bestrafen",
         "discard_hint": "Wenn du die Aktion abbrechen möchtest, klicke einfach unten auf 'Nachricht verwerfen'.",
