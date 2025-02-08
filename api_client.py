@@ -7,7 +7,6 @@ class APIClient:
         self.base_url = base_url
         self.headers = {"Authorization": f"Bearer {api_token}"}
         self.session = None
-        self.api_version = ""
 
     async def create_session(self):
         if not self.session:
@@ -17,20 +16,6 @@ class APIClient:
         if self.session:
             await self.session.close()
             self.session = None
-
-    async def login(self, username, password):
-        await self.create_session()
-        url = f'{self.base_url}/api/login'
-        data = {'username': username, 'password': password}
-        async with self.session.post(url, json=data) as response:
-            if response.status != 200:
-                text = await response.text()
-                logging.error(f"Fehler beim Login: {response.status}, Antwort: {text}")
-                return False
-            text = await response.text()
-            res = json.loads(text)
-            self.api_version = res["version"]
-            return True
 
     async def get_player_data(self, player_id):
         """Beispiel-Endpunkt zum Abfragen von Live-Stats."""
@@ -126,7 +111,7 @@ class APIClient:
             return None
 
     async def do_temp_ban(self, player, player_id, duration_hours, reason):
-        """Beispiel: Spieler temporär bannen (alter Endpunkt, optional)."""
+        """Spieler temporär bannen."""
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/temp_ban'
@@ -150,7 +135,7 @@ class APIClient:
             return False
 
     async def do_perma_ban(self, player, player_id, reason):
-        """Beispiel: Spieler permanent bannen (alter Endpunkt, optional)."""
+        """Spieler permanent bannen."""
         if not self.session:
             await self.create_session()
         url = f'{self.base_url}/api/perma_ban'
@@ -256,8 +241,8 @@ class APIClient:
 
     async def get_all_message_templates(self):
         """
-        Ruft alle Nachrichtenvorlagen vom neuen Endpunkt /api/get_all_message_templates ab.
-        Gibt ein Dictionary der Form zurück:
+        Ruft alle Nachrichtenvorlagen vom Endpunkt /api/get_all_message_templates ab.
+        Gibt ein Dictionary zurück, z.B.:
         {
             "MESSAGE": [...],
             "REASON": [...],
@@ -278,7 +263,7 @@ class APIClient:
             return {}
 
     async def do_punish(self, player_id, player_name, reason):
-        """Spieler mit dem /api/punish-Endpunkt bestrafen (Punish)."""
+        """Spieler mit dem /api/punish-Endpunkt bestrafen."""
         url = f'{self.base_url}/api/punish'
         data = {
             'player_name': player_name,

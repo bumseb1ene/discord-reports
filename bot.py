@@ -6,18 +6,33 @@ from discord.ext import commands
 from discord.ui import View
 
 from dotenv import load_dotenv
-from api_client import APIClient  # Assuming this is the same as provided earlier
+from api_client import APIClient  # Annahme: Du hast dort die Logik, die den Token automatisch nutzt
 from Levenshtein import distance as levenshtein_distance
 from Levenshtein import jaro_winkler
-from helpers import remove_markdown, remove_bracketed_content, find_player_names, get_translation, get_author_name, \
-    set_author_name, load_excluded_words, remove_clantags, add_modlog, add_emojis_to_messages, \
-    only_remove_buttons, get_playerid_from_name, load_autorespond_tigger
+from helpers import (
+    remove_markdown,
+    remove_bracketed_content,
+    find_player_names,
+    get_translation,
+    get_author_name,
+    set_author_name,
+    load_excluded_words,
+    remove_clantags,
+    add_modlog,
+    add_emojis_to_messages,
+    only_remove_buttons,
+    get_playerid_from_name,
+    load_autorespond_tigger
+)
 import logging
 from messages import unitreportembed, playerreportembed, player_not_found_embed, Reportview
 
 # Konfiguration des Loggings
-logging.basicConfig(filename='bot_log.txt', level=logging.DEBUG,  # Level auf DEBUG gesetzt
-                    format='%(asctime)s:%(levelname)s:%(message)s')
+logging.basicConfig(
+    filename='bot_log.txt',
+    level=logging.DEBUG,  # Level auf DEBUG gesetzt
+    format='%(asctime)s:%(levelname)s:%(message)s'
+)
 
 # Loading environment variables
 load_dotenv()
@@ -26,8 +41,6 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 API_TOKEN = os.getenv('RCON_API_TOKEN')
 ALLOWED_CHANNEL_ID = int(os.getenv('ALLOWED_CHANNEL_ID'))  # Assuming channel ID is an integer
-USERNAME = os.getenv('RCON_USERNAME')
-PASSWORD = os.getenv('RCON_PASSWORD')
 MAX_SERVERS = int(os.getenv('MAX_SERVERS'))
 user_lang = os.getenv('USER_LANG', 'en')  # Standardwert auf 'en' gesetzt
 
@@ -41,21 +54,12 @@ intents.guild_messages = True
 class MyBot(commands.Bot):
     def __init__(self, intents):
         super().__init__(command_prefix="!", intents=intents)
-        self.api_client = APIClient(None, API_TOKEN)  # Initialisieren ohne API_BASE_URL
+        # Wir übergeben keinen Username/Password mehr, sondern nur unseren Token
+        # In deiner APIClient-Klasse sollte der Bearer-Token im Header oder entsprechend verwendet werden.
+        self.api_client = APIClient(None, API_TOKEN)  # Initialisieren ohne API_BASE_URL, aber mit Token
         self.api_base_url = None
-        self.api_logged_in = False
         self.excluded_words = load_excluded_words('exclude_words.json')
         self.autorespond_trigger = load_autorespond_tigger('autorespond_trigger.json')
-
-    async def login_to_api(self, api_base_url):
-        if not self.api_logged_in or self.api_base_url != api_base_url:
-            self.api_base_url = api_base_url
-            self.api_client.base_url = api_base_url
-            self.api_logged_in = await self.api_client.login(USERNAME, PASSWORD)
-            if self.api_logged_in:
-                print(get_translation(user_lang, "api_login_successful").format(api_base_url))
-            else:
-                print(get_translation(user_lang, "api_login_failed").format(api_base_url))
 
     def extract_server_name(self, embed):
         if embed.footer:
@@ -81,6 +85,7 @@ class MyBot(commands.Bot):
         server_name = None
         api_base_url = None
 
+        # Falls ein Embed vorhanden ist, extrahieren wir hier den Servernamen
         if message.embeds:
             embed = message.embeds[0]
             if embed.footer:
@@ -89,7 +94,7 @@ class MyBot(commands.Bot):
                     api_base_url = self.get_api_base_url_from_server_name(server_name)
                     if api_base_url:
                         self.api_client.base_url = api_base_url
-                        await self.login_to_api(api_base_url)
+                        print(get_translation(user_lang, "api_login_successful").format(api_base_url))
                     else:
                         print(get_translation(user_lang, "no_api_base_url_found"))
                 else:
@@ -98,12 +103,17 @@ class MyBot(commands.Bot):
         if server_name is not None:
             api_base_url = self.get_api_base_url_from_server_name(server_name)
 
-        # Überprüfen Sie, ob eine gültige URL gefunden wurde, bevor Sie fortfahren
+        # Wenn eine gültige URL gefunden wurde, setzen wir sie im Client
         if api_base_url:
             self.api_client.base_url = api_base_url
-            await self.login_to_api(api_base_url)
 
-        trigger_words = ["able", "baker", "charlie", "commander", "kommandant", "dog", "easy", "fox", "george", "how", "item", "jig", "king", "love", "mike", "negat", "option", "prep", "queen", "roger", "sugar", "tare", "uncle", "victor", "william", "x-ray", "yoke", "zebra"]
+        # Trigger Words für Squadnamen
+        trigger_words = [
+            "able", "baker", "charlie", "commander", "kommandant", "dog", "easy", "fox",
+            "george", "how", "item", "jig", "king", "love", "mike", "negat", "option",
+            "prep", "queen", "roger", "sugar", "tare", "uncle", "victor", "william",
+            "x-ray", "yoke", "zebra"
+        ]
         team = None  # Initialisierung von 'team'
 
         if message.embeds:
@@ -132,6 +142,7 @@ class MyBot(commands.Bot):
             if not "clean_description" in locals():
                 return
 
+            # Automatische Antwort, falls der Meldungstext in autorespond_trigger.json hinterlegt ist
             if clean_description.lower() in self.autorespond_trigger:
                 author_name = get_author_name()
                 playerid = await get_playerid_from_name(get_author_name(), api_client=self.api_client)
@@ -142,7 +153,7 @@ class MyBot(commands.Bot):
                     await message.add_reaction("📨")
                 return
 
-
+            # Prüfen, ob es sich um eine Squad-Meldung oder eine Spieler-Meldung handelt
             if "watched on:" not in clean_description: # Don't react on watchlist messages
                 reported_parts = command_parts
 
@@ -159,12 +170,11 @@ class MyBot(commands.Bot):
                         roles = ["officer", "spotter", "tankcommander", "armycommander"]
                         logging.info(f"Unit name: {unit_name}, Roles: {roles}")
 
-                        # Stellen Sie sicher, dass 'team' vor dem Aufruf von find_and_respond_unit gesetzt ist
+                        # Stellen Sie sicher, dass 'team' vor dem Aufruf gesetzt ist
                         if team:
                             await self.find_and_respond_unit(team, unit_name, roles, message)
                         else:
                             logging.error("Team not identified for unit report.")
-
                     else:
                         logging.info("Identified as player report.")
                         reported_identifier = " ".join(reported_parts)
@@ -185,13 +195,14 @@ class MyBot(commands.Bot):
 
         matching_player = []
         for player_id, player_info in player_data['result']['players'].items():
-            player_unit_name = player_info.get('unit_name', "")
-            if player_unit_name is None:
-                player_unit_name = ""
+            player_unit_name = player_info.get('unit_name', "") or ""
 
-            if player_info['team'] and player_info['team'].lower() == team.lower() and \
-            player_unit_name.lower() == unit_name.lower() and \
-            player_info['role'].lower() in [role.lower() for role in roles]:
+            # Gleiche Teamzugehörigkeit, Squad-Name und entsprechende Rolle
+            if (
+                player_info['team'] and player_info['team'].lower() == team.lower()
+                and player_unit_name.lower() == unit_name.lower()
+                and player_info['role'].lower() in [role.lower() for role in roles]
+            ):
                 player_details = {
                     "name": player_info['name'],
                     "level": player_info['level'],
@@ -203,23 +214,38 @@ class MyBot(commands.Bot):
                 break
 
         if matching_player:
-            player_additional_data= await self.api_client.get_player_by_id(matching_player['player_id'])
-            embed = await unitreportembed(player_additional_data, user_lang, unit_name, roles, team, matching_player)
+            player_additional_data = await self.api_client.get_player_by_id(matching_player['player_id'])
+            embed = await unitreportembed(
+                player_additional_data,
+                user_lang,
+                unit_name,
+                roles,
+                team,
+                matching_player
+            )
             view = Reportview(self.api_client)
-            await view.add_buttons(user_lang, matching_player['name'], player_additional_data['player_id'])
+            await view.add_buttons(
+                user_lang,
+                matching_player['name'],
+                player_additional_data['player_id']
+            )
             response_message = await message.reply(embed=embed, view=view)
             self.last_response_message_id = response_message.id
         else:
             await self.player_not_found(message)
+
         logging.info(get_translation(user_lang, "response_sent").format(unit_name, ', '.join(roles), team))
 
-    async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=3, jaro_winkler_threshold=0.85):
+    async def find_and_respond_player(self, message, reported_identifier,
+                                      max_levenshtein_distance=3,
+                                      jaro_winkler_threshold=0.85):
         logging.info("find_and_respond_player function called")
         logging.info(f"Searching for player report: {reported_identifier}")
 
         reported_identifier_cleaned = remove_bracketed_content(reported_identifier)
         potential_names = find_player_names(reported_identifier_cleaned, self.excluded_words)
 
+        # Erster, schneller API-Call (weniger Details, aber reicht für den Namensabgleich)
         players_fast = await self.api_client.get_players()
         if not players_fast or 'result' not in players_fast:
             logging.error("Failed to retrieve players list")
@@ -234,13 +260,18 @@ class MyBot(commands.Bot):
         for player in players_fast['result']:
             cleaned_player_name = remove_clantags(player['name'].lower())
             player_name_words = cleaned_player_name.split()
+
             for reported_word in potential_names:
                 for player_word in player_name_words:
                     levenshtein_score = levenshtein_distance(reported_word.lower(), player_word)
                     jaro_score = jaro_winkler(reported_word.lower(), player_word)
+                    # Kombinierte Heuristik
                     if levenshtein_score <= max_combined_score_threshold or jaro_score >= jaro_winkler_threshold:
                         combined_score = levenshtein_score + (1 - jaro_score)
-                        logging.info(f"Scores for '{reported_word}' vs '{cleaned_player_name}': Levenshtein = {levenshtein_score}, Jaro = {jaro_score}, Combined = {combined_score}")
+                        logging.info(
+                            f"Scores for '{reported_word}' vs '{cleaned_player_name}': "
+                            f"Levenshtein = {levenshtein_score}, Jaro = {jaro_score}, Combined = {combined_score}"
+                        )
 
                         if combined_score < best_score and combined_score <= max_combined_score_threshold:
                             best_score = combined_score
@@ -250,23 +281,37 @@ class MyBot(commands.Bot):
 
         if best_match:
             live_game_stats = await self.api_client.get_player_data(best_player_data['player_id'])
-            player_stats = next((item for item in live_game_stats['result']['stats'] if
-                                 item['player_id'] == best_player_data['player_id']), None)
             if not live_game_stats or 'result' not in live_game_stats or 'stats' not in live_game_stats['result']:
                 logging.error("Failed to retrieve live game stats for the best matching player")
                 return
+
+            player_stats = next(
+                (item for item in live_game_stats['result']['stats']
+                 if item['player_id'] == best_player_data['player_id']),
+                None
+            )
 
             if player_stats:
                 logging.info(get_translation(user_lang, "best_match_found").format(best_match))
                 player_additional_data = await self.api_client.get_player_by_id(best_player_data['player_id'])
                 total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
                 total_playtime_hours = total_playtime_seconds / 3600
-                embed = await playerreportembed(user_lang, best_match, player_stats, total_playtime_hours, best_player_data)
+                embed = await playerreportembed(
+                    user_lang,
+                    best_match,
+                    player_stats,
+                    total_playtime_hours,
+                    best_player_data
+                )
 
                 response_message = await message.reply(embed=embed)
                 self.last_response_message_id = response_message.id
                 view = Reportview(self.api_client)
-                await view.add_buttons(user_lang, best_match, best_player_data['player_id'])
+                await view.add_buttons(
+                    user_lang,
+                    best_match,
+                    best_player_data['player_id']
+                )
                 await response_message.edit(view=view)
             else:
                 await self.player_not_found(message)
@@ -283,10 +328,10 @@ class MyBot(commands.Bot):
         embed = await player_not_found_embed(player_id, author_name, user_lang)
         await message.reply(embed=embed, view=view)
 
-
     async def on_close(self):
         if self.api_client.session:
             await self.api_client.close_session()
+
 
 # Running the bot
 bot = MyBot(intents)
