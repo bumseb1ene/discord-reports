@@ -36,7 +36,6 @@ class MessageReportedPlayerButton(discord.ui.Button):
             ephemeral=True
         )
 
-
 class PunishButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, self_report):
         super().__init__(style=discord.ButtonStyle.blurple, label=label, custom_id=custom_id)
@@ -64,7 +63,6 @@ class PunishButton(discord.ui.Button):
             view=view,
             ephemeral=True
         )
-
 
 class KickButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, author_name, self_report):
@@ -95,7 +93,6 @@ class KickButton(discord.ui.Button):
             ephemeral=True
         )
 
-
 class TempBanButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, self_report):
         super().__init__(style=discord.ButtonStyle.green, label=label, custom_id=custom_id)
@@ -124,7 +121,6 @@ class TempBanButton(discord.ui.Button):
             ephemeral=True
         )
 
-
 class PermaBanButton(discord.ui.Button):
     def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, author_player_id, self_report):
         super().__init__(style=discord.ButtonStyle.red, label=label, custom_id=custom_id)
@@ -152,7 +148,6 @@ class PermaBanButton(discord.ui.Button):
             view=view,
             ephemeral=True
         )
-
 
 class MessagePlayerModal(discord.ui.Modal):
     """
@@ -216,7 +211,6 @@ class MessagePlayerModal(discord.ui.Modal):
             await add_emojis_to_messages(interaction)
             await only_remove_buttons(interaction)
 
-
 class MessagePlayerButton(discord.ui.Button):
     """Button, der direkt ein Modal öffnet, um eine Nachricht an den Spieler zu schreiben."""
     def __init__(self, label: str, custom_id: str, api_client, player_id, user_lang, self_report):
@@ -237,7 +231,6 @@ class MessagePlayerButton(discord.ui.Button):
             self.self_report
         )
         await interaction.response.send_modal(modal)
-
 
 class Unjustified_Report(discord.ui.Button):
     def __init__(self, author_name, author_id, user_lang, api_client):
@@ -264,7 +257,6 @@ class Unjustified_Report(discord.ui.Button):
             modlog = get_translation(self.user_lang, "log_unjustified").format(interaction.user.display_name)
             await add_modlog(interaction, modlog, False, self.user_lang, self.api_client)
 
-
 class No_Action_Button(discord.ui.Button):
     def __init__(self, user_lang, api_client):
         super().__init__(
@@ -282,7 +274,6 @@ class No_Action_Button(discord.ui.Button):
         confirm_message = get_translation(self.user_lang, "no_action_performed")
         await interaction.response.send_message(confirm_message, ephemeral=True)
         await add_emojis_to_messages(interaction, '🗑')
-
 
 class Show_logs_button(discord.ui.Button):
     def __init__(self, view, player_name, custom_id, user_lang):
@@ -306,7 +297,6 @@ class Show_logs_button(discord.ui.Button):
         emb = interaction.message.embeds[0]
         await interaction.message.edit(embed=emb, view=self.msg_view)
 
-
 class Manual_process(discord.ui.Button):
     def __init__(self, user_lang, api_client):
         super().__init__(
@@ -325,7 +315,6 @@ class Manual_process(discord.ui.Button):
         confirm_message = get_translation(self.user_lang, "manual_process_respond")
         await interaction.response.send_message(confirm_message, ephemeral=True)
         await add_emojis_to_messages(interaction, '👀')
-
 
 class Finish_Report_Button(discord.ui.View):
     def __init__(self, user_lang, api_client):
@@ -361,13 +350,11 @@ class Finish_Report_Button(discord.ui.View):
             add_entry=True
         )
 
-
 class ReasonSelect(discord.ui.View):
     """
     Zeigt ein Select-Menü an. Entscheidet je nach self.action, ob wir "MESSAGE" oder "REASON" verwenden.
     Anschließend öffnet sich ein Modal zum Bestätigen/Anpassen des Textes.
     """
-
     def __init__(self, user_lang, api_client, player_id, action, author_player_id, author_name, original_report_message,
                  self_report):
         super().__init__(timeout=600)
@@ -385,31 +372,25 @@ class ReasonSelect(discord.ui.View):
 
     async def initialize_view(self):
         select_label = get_translation(self.user_lang, "select_reason")
-
         # 1) Templates vom neuen Endpunkt holen
         templates = await self.api_client.get_all_message_templates()
-
         # 2) Je nach Aktion entweder "MESSAGE" oder "REASON" wählen
         if self.action == "Message":
             all_entries = templates.get("MESSAGE", [])
         else:
             # Für Kick, Temp-Ban, Perma-Ban, Punish => REASON
             all_entries = templates.get("REASON", [])
-
         self.reasons = all_entries
         self.player_name = await get_playername(self.player_id, self.api_client)
-
         selectinst = Select(placeholder=select_label)
         selectinst.min_values = 1
         selectinst.max_values = 1
         options = []
-
         # Option für "eigene Reason" oder "eigene Nachricht"
         options.append(discord.SelectOption(
             label=get_translation(self.user_lang, "own_reason"),
             value="empty"
         ))
-
         entries = 0
         # Aus den Objekten "title" auslesen, als Label fürs Select
         for x, obj in enumerate(self.reasons):
@@ -419,7 +400,6 @@ class ReasonSelect(discord.ui.View):
             if title and entries < 24:  # max 25 total
                 options.append(discord.SelectOption(label=title, value=str(x)))
                 entries += 1
-
         selectinst.options = options
         selectinst.callback = self.callback
         self.add_item(selectinst)
@@ -432,7 +412,6 @@ class ReasonSelect(discord.ui.View):
             reason_text = reason_obj.get("content", "")
         else:
             reason_text = "empty"
-
         # Passenden Titel je nach Aktion
         if self.action == "Message":
             title = get_translation(self.user_lang, "message_player_modal_title").format(self.player_name)
@@ -446,7 +425,6 @@ class ReasonSelect(discord.ui.View):
             title = get_translation(self.user_lang, "perma_name_player").format(self.player_name)
         else:
             title = "Reason Input"
-
         await interaction.response.send_modal(
             ReasonInput(
                 reason_text,
@@ -463,13 +441,11 @@ class ReasonSelect(discord.ui.View):
             )
         )
 
-
 class ReasonInput(discord.ui.Modal):
     """
     Zeigt ein Textfeld mit dem vorgeschlagenen content an.
     Bei Temp-Ban zusätzlich ein Feld für die Dauer.
     """
-
     def __init__(
         self, reason_text, action, player_id, user_lang, api_client, player_name, author_player_id,
         author_name, original_report_message, self_report, *args, **kwargs
@@ -500,7 +476,6 @@ class ReasonInput(discord.ui.Modal):
                 default="_",
                 max_length=300
             ))
-
         # Falls "Temp-Ban", ein weiteres Feld für die Dauer
         if action == "Temp-Ban":
             self.add_item(discord.ui.TextInput(
@@ -607,7 +582,6 @@ class ReasonInput(discord.ui.Modal):
                 self.self_report
             )
 
-
 class Confirm_Action_Button(discord.ui.View):
     """Button, um Temp-Ban >72h oder Perma-Ban endgültig zu bestätigen."""
     def __init__(
@@ -657,7 +631,6 @@ class Confirm_Action_Button(discord.ui.View):
             self.self_report,
             self.duration
         )
-
 
 async def perform_action(
     action, reason, player_name, player_id, author_name, author_player_id,
@@ -735,9 +708,7 @@ async def perform_action(
     elif action == "Perma-Ban":
         success = await api_client.add_blacklist_record(player_id, reason)
         if success:
-            confirmation_message = get_translation(user_lang, "player_perma_banned_successfully").format(
-                player_name, reason
-            )
+            confirmation_message = get_translation(user_lang, "player_perma_banned_successfully").format(player_name, reason)
             modlog = get_translation(user_lang, "log_perma").format(
                 interaction.user.display_name,
                 await get_playername(player_id, api_client),
@@ -746,6 +717,24 @@ async def perform_action(
             if author_player_id and self_report is False:
                 message_to_author = get_translation(user_lang, "message_to_author_perma_banned").format(player_name)
                 await api_client.do_message_player(author_name, author_player_id, message_to_author)
+            
+            # Zusätzliche Embed mit den Spielerinformationen als Code-Block:
+            # Die Labels für Grund und Beweise werden aus den Translations bezogen.
+            reason_label = get_translation(user_lang, "reason")
+            evidence_label = get_translation(user_lang, "evidence")
+            code_block = f"```\
+Name: {player_name}\n\
+ID: {player_id}\n\
+{reason_label}: {reason}\n\
+{evidence_label}:\n\
+```"
+            note = get_translation(user_lang, "hack_let_loose_note")
+            extra_embed = discord.Embed(
+                title=get_translation(user_lang, "banned_player_data_title"),
+                description=f"{code_block}\n{note}",
+                color=discord.Colour.blue()
+            )
+            await interaction.followup.send(embed=extra_embed)
         else:
             good_result = False
             confirmation_message = get_translation(user_lang, "error_perma_banning_player")

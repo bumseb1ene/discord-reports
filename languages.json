@@ -56,9 +56,9 @@
         "no_server_name_found": "No server name found in the embed.",
         "kick_reason": "You have violated server rules",
         "temp_ban_player": "⏰ TB",
-		"player_temp_banned_successfully": "Player {} has been temporarily banned for {} hours. Reason: {}.",
+        "player_temp_banned_successfully": "Player {} has been temporarily banned for {} hours. Reason: {}.",
         "message_to_author_temp_banned": "The player {} you reported has been temporarily banned.",
-		"error_temp_banning_player": "Error in temporarily banning the player.",
+        "error_temp_banning_player": "Error in temporarily banning the player.",
         "temp_ban_modal_title": "Temporary Ban",
         "temp_ban_duration_label": "Duration in Hours",
         "temp_ban_duration_placeholder": "Enter the number of hours...",
@@ -99,11 +99,11 @@
         "log_manual": "{} is going to process the report manually.",
         "button_manual_process": "\uD83D\uDC40 Process manually",
         "report_finished": "✅Processing finished",
-		"has_finished_report": "{} has finished the processing.",
+        "has_finished_report": "{} has finished the processing.",
         "no_reason_or_player": "Thank you for your report. However, in order for us to be able to process your message, it is necessary to specify a player and/or the problem. Write this after the admin command.\nExample: !admin superhero kills me\n\nThank you.\nThis is an automatically generated message.",
         "select_reason": "Select reason",
         "input_reason": "Input reason",
-		"confirm_action": "Confirm action",
+        "confirm_action": "Confirm action",
         "kick_name_player": "Kick player {}",
         "punish_name_player": "Punish player {}",
         "tempban_name_player": "Ban player {} temporarily",
@@ -111,12 +111,15 @@
         "player_name": "Player: `{}`",
         "action": "Action: {}",
         "log_punish": "{} punished {}. Reason: {}",
-		"punish_confirmed": "The player has been punished successfully.",
+        "punish_confirmed": "The player has been punished successfully.",
         "error_action": "General error when performing the action. Please contact your system administrator.",
         "reason": "Reason",
         "own_reason": "<Own Input>",
         "punish_button_label": "\uD83D\uDC80 Punish",
-        "discard_hint": "If you want to abort the action, click on 'Dismiss message'."
+        "discard_hint": "If you want to abort the action, click on 'Dismiss message'.",
+        "banned_player_data_title": "Banned Player Data",
+        "evidence": "Evidence",
+        "hack_let_loose_note": "Note: For posting on Hack let Loose, evidence must be added."
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -183,7 +186,6 @@
         "temp_ban_duration_placeholder": "Geben Sie die Anzahl der Stunden ein...",
         "temp_ban_reason_label": "Grund",
         "temp_ban_reason_placeholder": "Grund für den temporären Bann...",
-
         "perma_ban_button_label": "\uD83D\uDD28 PB",
         "perma_ban_modal_title": "Permanenter Ban",
         "perma_ban_reason_label": "Grund für den Ban",
@@ -236,6 +238,9 @@
         "reason": "Begründung",
         "own_reason": "<Eigene Eingabe>",
         "punish_button_label": "\uD83D\uDC80 Bestrafen",
-        "discard_hint": "Wenn du die Aktion abbrechen möchtest, klicke einfach unten auf 'Nachricht verwerfen'."
+        "discard_hint": "Wenn du die Aktion abbrechen möchtest, klicke einfach unten auf 'Nachricht verwerfen'.",
+        "banned_player_data_title": "Spielerdaten des gebannten Spielers",
+        "evidence": "Beweise",
+        "hack_let_loose_note": "Hinweis: Für das Posten bei Hack let Loose müssen die Beweise noch hinzugefügt werden."
     }
 }
