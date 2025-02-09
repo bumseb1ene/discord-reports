@@ -59,77 +59,145 @@ class Reportview(discord.ui.View):
     def __init__(self, api_client):
         super().__init__(timeout=3600)
         self.api_client = api_client
+        self.message = None  # damit wir on_timeout überschreiben können, falls nötig
 
-    async def on_timeout(self) -> None:
-        # Step 2
-        for item in self.children:
-            item.disabled = True
-
-        # Step 3
-        await self.message.edit(view=self)
-
-    async def add_buttons(self, user_lang, reported_player_name, player_id, self_report=False):
-        if self_report == False:
+    async def add_buttons(
+        self,
+        user_lang,
+        reported_player_name,
+        player_id,
+        self_report=False,
+        player_found=True  # <--- Neu
+    ):
+        """
+        Fügt je nach Parametern bestimmte Buttons hinzu.
+        - self_report=False => 'Message Reporter'-Button
+        - player_found=False => KEINE Kick/Temp-Ban/Perma-Ban-Buttons
+        """
+        # Autor herausfinden (Reporter), falls wir ihn kontaktieren wollen
+        if not self_report:
             author_name = get_author_name()
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
         else:
             author_name = False
             author_player_id = False
-        # Message reported player
-        message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(reported_player_name)
-        message_reported_player_button = MessageReportedPlayerButton(label=message_reported_player_button_label,
-                                                                     custom_id=f"message_reported_player_{player_id}",
-                                                                     api_client=self.api_client,
-                                                                     player_id=player_id,
-                                                                     user_lang=user_lang, author_name=author_name,
-                                                                     author_player_id=author_player_id, self_report=self_report)
-        self.add_item(message_reported_player_button)
 
-        # Punish
-        punish_button_label = get_translation(user_lang, "punish_button_label").format(reported_player_name)
-        punish_button = PunishButton(label=punish_button_label,
-                                     custom_id=f"punish_{player_id}",
-                                     api_client=self.api_client,
-                                     player_id=player_id, user_lang=user_lang,
-                                     author_player_id=author_player_id, self_report=self_report)
-        self.add_item(punish_button)
+        #
+        # 1) Button: Nachricht an den REPORTED Spieler („MessageReportedPlayerButton“)
+        #    Nur sinnvoll, wenn tatsächlich ein Player gefunden wurde
+        #
+        if player_found:
+            message_reported_player_button_label = get_translation(user_lang, "message_reported_player").format(reported_player_name)
+            message_reported_player_button = MessageReportedPlayerButton(
+                label=message_reported_player_button_label,
+                custom_id=f"message_reported_player_{player_id}",
+                api_client=self.api_client,
+                player_id=player_id,
+                user_lang=user_lang,
+                author_name=author_name,
+                author_player_id=author_player_id,
+                self_report=self_report
+            )
+            self.add_item(message_reported_player_button)
 
-        # Kick player
-        kick_button_label = get_translation(user_lang, "kick_player")
-        kick_button = KickButton(label=kick_button_label, custom_id=f"kick_{player_id}", api_client=self.api_client, player_id=player_id, user_lang=user_lang, author_player_id=author_player_id, author_name=author_name, self_report=self_report)
-        self.add_item(kick_button)
-        # Tempban
-        temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(reported_player_name)
-        temp_ban_button = TempBanButton(label=temp_ban_button_label,
-                                        custom_id=f"temp_ban_{player_id}",
-                                        api_client=self.api_client,
-                                        player_id=player_id, user_lang=user_lang,
-                                        author_player_id=author_player_id, self_report=self_report)
-        self.add_item(temp_ban_button)
-        # Perma-Ban
-        perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(reported_player_name)
-        perma_ban_button = PermaBanButton(label=perma_ban_button_label,
-                                          custom_id=f"perma_ban_{player_id}",
-                                          api_client=self.api_client, player_id=player_id,
-                                          user_lang=user_lang, author_player_id=author_player_id, self_report=self_report)
-        self.add_item(perma_ban_button)
+            # 2) Punish-Button (sofern erwünscht)
+            punish_button_label = get_translation(user_lang, "punish_button_label").format(reported_player_name)
+            punish_button = PunishButton(
+                label=punish_button_label,
+                custom_id=f"punish_{player_id}",
+                api_client=self.api_client,
+                player_id=player_id,
+                user_lang=user_lang,
+                author_player_id=author_player_id,
+                self_report=self_report
+            )
+            self.add_item(punish_button)
+
+        #
+        # 3) Kick, Temp-Ban, Perma-Ban -> NUR wenn player_found == True
+        #
+        if player_found:
+            # Kick
+            kick_button_label = get_translation(user_lang, "kick_player")
+            kick_button = KickButton(
+                label=kick_button_label,
+                custom_id=f"kick_{player_id}",
+                api_client=self.api_client,
+                player_id=player_id,
+                user_lang=user_lang,
+                author_player_id=author_player_id,
+                author_name=author_name,
+                self_report=self_report
+            )
+            self.add_item(kick_button)
+
+            # Temp-Ban
+            temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(reported_player_name)
+            temp_ban_button = TempBanButton(
+                label=temp_ban_button_label,
+                custom_id=f"temp_ban_{player_id}",
+                api_client=self.api_client,
+                player_id=player_id,
+                user_lang=user_lang,
+                author_player_id=author_player_id,
+                self_report=self_report
+            )
+            self.add_item(temp_ban_button)
+
+            # Perma-Ban
+            perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(reported_player_name)
+            perma_ban_button = PermaBanButton(
+                label=perma_ban_button_label,
+                custom_id=f"perma_ban_{player_id}",
+                api_client=self.api_client,
+                player_id=player_id,
+                user_lang=user_lang,
+                author_player_id=author_player_id,
+                self_report=self_report
+            )
+            self.add_item(perma_ban_button)
+
+        #
+        # 4) Button: an den MELDER schreiben (nur falls self_report=False)
+        #
         if self_report == False:
-        # Message Reporter
             message_player_button_label = get_translation(user_lang, "message_player").format(reported_player_name)
-            message_player_button = MessagePlayerButton(label=message_player_button_label,
-                                                        custom_id=f"message_player_{player_id}",
-                                                        api_client=self.api_client, player_id=player_id,
-                                                        user_lang=user_lang, self_report=self_report)
+            message_player_button = MessagePlayerButton(
+                label=message_player_button_label,
+                custom_id=f"message_player_{player_id}",
+                api_client=self.api_client,
+                player_id=player_id,
+                user_lang=user_lang,
+                self_report=self_report
+            )
             self.add_item(message_player_button)
-        # Mimimi
-        unjustified_report_button = Unjustified_Report(author_name, author_player_id, user_lang, self.api_client)
+
+        #
+        # 5) Unjustified (Report unbegründet)
+        #
+        unjustified_report_button = Unjustified_Report(
+            author_name, 
+            author_player_id, 
+            user_lang, 
+            self.api_client
+        )
         self.add_item(unjustified_report_button)
-        # Müll
+
+        #
+        # 6) Müll / Falschreport
+        #
         no_action_button = No_Action_Button(user_lang, self.api_client)
         self.add_item(no_action_button)
-        # Show Logs
-        show_logs_buttonobj = Show_logs_button(self, reported_player_name, custom_id="logs", user_lang=user_lang)
-        self.add_item(show_logs_buttonobj)
-        # Manual Process
+
+        #
+        # 7) Logs-Button -> Nur sinnvoll, wenn wir tatsächlich einen Spieler gefunden haben
+        #
+        if player_found:
+            show_logs_buttonobj = Show_logs_button(self, reported_player_name, custom_id="logs", user_lang=user_lang)
+            self.add_item(show_logs_buttonobj)
+
+        #
+        # 8) Manuelle Bearbeitung
+        #
         manual_process_button = Manual_process(user_lang, self.api_client)
         self.add_item(manual_process_button)

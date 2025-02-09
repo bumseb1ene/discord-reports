@@ -119,7 +119,9 @@
         "discard_hint": "If you want to abort the action, click on 'Dismiss message'.",
         "banned_player_data_title": "Banned Player Data",
         "evidence": "Evidence",
-        "hack_let_loose_note": "Note: For posting on Hack let Loose, evidence must be added."
+        "hack_let_loose_note": "Note: For posting on Hack let Loose, evidence must be added.",
+        "player_not_found_auto_msg": "Unfortunately, the reported player could not be found. He may have already left the server or the name was misspelled."
+
     },
     "de": {
         "unknown_sender": "Unbekannter Sender",
@@ -241,6 +243,7 @@
         "discard_hint": "Wenn du die Aktion abbrechen möchtest, klicke einfach unten auf 'Nachricht verwerfen'.",
         "banned_player_data_title": "Spielerdaten des gebannten Spielers",
         "evidence": "Beweise",
-        "hack_let_loose_note": "Hinweis: Für das Posten bei Hack let Loose müssen die Beweise noch hinzugefügt werden."
+        "hack_let_loose_note": "Hinweis: Für das Posten bei Hack let Loose müssen die Beweise noch hinzugefügt werden.",
+        "player_not_found_auto_msg": "Der gemeldete Spieler konnte leider nicht gefunden werden. Möglicherweise hat er den Server bereits verlassen oder der Name wurde falsch eingegeben."
     }
 }

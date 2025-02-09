@@ -60,6 +60,7 @@ class MyBot(commands.Bot):
         self.api_base_url = None
         self.excluded_words = load_excluded_words('exclude_words.json')
         self.autorespond_trigger = load_autorespond_tigger('autorespond_trigger.json')
+        self.user_lang = os.getenv('USER_LANG', 'en')  # oder eine andere Standard-Sprache
 
     def extract_server_name(self, embed):
         if embed.footer:
@@ -319,13 +320,31 @@ class MyBot(commands.Bot):
             await self.player_not_found(message)
 
     async def player_not_found(self, message):
+        # 1) Reporter ermitteln
         author_name = get_author_name()
-        view = View(timeout=None)
+        author_player_id = await get_playerid_from_name(author_name, self.api_client)
+
+        # 2) Dem Melder (Reporter) automatisch eine Nachricht schicken
+        not_found_text = get_translation(self.user_lang, "player_not_found_auto_msg")  # <--- neuen Key in languages.json ergänzen
+        if author_player_id:
+            await self.api_client.do_message_player(author_name, author_player_id, not_found_text)
+
+        # 3) Embed für "nicht gefunden" erstellen
+        embed = await player_not_found_embed(author_player_id, author_name, self.user_lang)
+
+        # 4) View erstellen, aber OHNE Kick/Temp-Ban/Perma-Ban
         view = Reportview(self.api_client)
-        name = get_author_name()
-        player_id = await get_playerid_from_name(name, self.api_client)
-        await view.add_buttons(user_lang, get_author_name(), player_id, self_report=True)
-        embed = await player_not_found_embed(player_id, author_name, user_lang)
+        # Wichtig: self_report=False, damit der „Message Reporter“-Button sichtbar ist;
+        #          player_found=False, damit wir Kick/TempBan/PermaBan nicht hinzufügen.
+        await view.add_buttons(
+            user_lang=self.user_lang,
+            reported_player_name=author_name,        # hier stecken wir den Melder rein
+            player_id=author_player_id,
+            self_report=False,
+            player_found=False  # <-- sorgt gleich dafür, dass Kick, Temp-Ban, Perma-Ban NICHT hinzugefügt werden
+        )
+
+        # 5) Abschicken
         await message.reply(embed=embed, view=view)
 
     async def on_close(self):
