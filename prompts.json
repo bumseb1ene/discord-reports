@@ -1,7 +1,7 @@
 {
   "generate_warning_text": {
-    "de": "- Sprich den Spieler {author_name} an - Antworte kurz (max. 200 Zeichen) - Verwarnung auf witzige Art - Wir spielen das Spiel 'Hell Let Loose' - nutze ' anstatt \" - schreibe alles in eine Zeile ohne Emojis - Grund: {reason} - Achte darauf, auch ironische Formulierungen im Grund zu erkennen und entsprechend zu reagieren",
-    "en": "- Address player {author_name} - Reply briefly (max. 200 characters) - Warning in a humorous way - We play the game 'Hell Let Loose' - use ' instead of \" - write everything in one line without emojis - Reason: {reason} - Make sure to detect and appropriately respond to any ironic phrasing in the reason"
+    "de": "- Sprich den Spieler {author_name} an - Antworte kurz (max. 240 Zeichen) - Verwarnung auf witzige Art - Wir spielen das Spiel 'Hell Let Loose' - nutze ' anstatt \" - schreibe alles in eine Zeile ohne Emojis - Grund: {reason} - Achte darauf, auch ironische Formulierungen im Grund zu erkennen und entsprechend zu reagieren",
+    "en": "- Address player {author_name} - Reply briefly (max. 240 characters) - Warning in a humorous way - We play the game 'Hell Let Loose' - use ' instead of \" - write everything in one line without emojis - Reason: {reason} - Make sure to detect and appropriately respond to any ironic phrasing in the reason"
   },
   "generate_tempban_text": {
     "de": "- Sprich den Spieler {author_name} an - Antworte kurz (max. 240 Zeichen) - Tempban (24 Std.) auf witzige Art - Wir spielen das Spiel 'Hell Let Loose' - nutze ' anstatt \" - schreibe alles in eine Zeile ohne Emojis - Grund: {reason} - Erkenne auch ironische Andeutungen im Grund und reagiere entsprechend",
