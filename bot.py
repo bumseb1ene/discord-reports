@@ -40,7 +40,7 @@ from ai_functions import (
 
 logging.basicConfig(
     filename='bot_log.txt',
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s:%(levelname)s:%(message)s'
 )
 
@@ -173,7 +173,7 @@ class MyBot(commands.Bot):
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
             if author_player_id:
                 warning_text = await generate_warning_text(self.ai_client, author_name, begruendung, self.user_lang)
-                ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, begruendung)
+                ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, warning_text)
                 blacklist_success = await self.api_client.add_blacklist_record(author_player_id, begruendung)
                 if ban_success and blacklist_success:
                     log_entry = f"Automatischer Perma-Bann durch KI: {begruendung}"
@@ -202,7 +202,7 @@ class MyBot(commands.Bot):
                 if author_player_id in self.warning_counts and self.warning_counts[author_player_id] >= 1:
                     kick_text = await generate_kick_text(self.ai_client, author_name, severity_reason, self.user_lang)
                     if not self.dry_run:
-                        kick_success = await self.api_client.do_kick(author_name, author_player_id, severity_reason)
+                        kick_success = await self.api_client.do_kick(author_name, author_player_id, kick_text)
                     else:
                         kick_success = True
                     if self.dry_run:
@@ -250,7 +250,7 @@ class MyBot(commands.Bot):
             elif severity == "temp_ban":
                 warning_text = await generate_warning_text(self.ai_client, author_name, severity_reason, self.user_lang)
                 if not self.dry_run:
-                    ban_success = await self.api_client.do_temp_ban(author_name, author_player_id, 24, severity_reason)
+                    ban_success = await self.api_client.do_temp_ban(author_name, author_player_id, 24, warning_text)
                 if self.dry_run:
                     embed = discord.Embed(
                         title="DRY RUN: 24-Stunden-Bann",

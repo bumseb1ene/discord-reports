@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL = os.getenv("MODEL", "gpt-4o-mini-2024-07-18")
+MODEL = os.getenv("OPENAI_API_MODEL", "gpt-4o-mini")
 
 # Lade die Prompts aus der JSON-Datei
 with open("prompts.json", "r", encoding="utf8") as f:
