@@ -6,8 +6,7 @@ from discord.ui import View
 
 from dotenv import load_dotenv
 from api_client import APIClient
-from Levenshtein import distance as levenshtein_distance
-from Levenshtein import jaro_winkler
+from Levenshtein import distance as levenshtein_distance, jaro_winkler
 from helpers import (
     remove_markdown,
     remove_bracketed_content,
@@ -27,15 +26,17 @@ from helpers import (
 import logging
 from messages import unitreportembed, playerreportembed, player_not_found_embed, Reportview
 
-# Importiere die KI-Funktionen aus der Datei ai_functions.py
+# AI functions
 from ai_functions import (
+    detect_language,
+    translate_text,
+    classify_report_text,
+    classify_insult_severity,
+    generate_positive_response_text,
     generate_warning_text,
     generate_tempban_text,
     generate_permaban_text,
-    generate_kick_text,
-    classify_report_text,
-    classify_insult_severity,
-    generate_positive_response_text
+    generate_kick_text
 )
 
 logging.basicConfig(
@@ -50,7 +51,7 @@ TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 API_TOKEN = os.getenv('RCON_API_TOKEN')
 ALLOWED_CHANNEL_ID = int(os.getenv('ALLOWED_CHANNEL_ID', '0'))
 MAX_SERVERS = int(os.getenv('MAX_SERVERS', '1'))
-user_lang = os.getenv('USER_LANG', 'en')
+user_lang = os.getenv('USER_LANG', 'en')  # Embed-/Systemsprache
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() in ("true", "1")
 
 intents = discord.Intents.default()
@@ -66,11 +67,10 @@ class MyBot(commands.Bot):
         self.api_base_url = None
         self.excluded_words = load_excluded_words('exclude_words.json')
         self.autorespond_trigger = load_autorespond_tigger('autorespond_trigger.json')
-        self.user_lang = os.getenv('USER_LANG', 'en')
+        self.user_lang = user_lang
         from openai import AsyncOpenAI
         self.ai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.dry_run = DRY_RUN
-        # Dictionary to track warnings for Kick-Logik
         self.warning_counts = {}
 
     def extract_server_name(self, embed):
@@ -106,11 +106,11 @@ class MyBot(commands.Bot):
                     api_base_url = self.get_api_base_url_from_server_name(server_name)
                     if api_base_url:
                         self.api_client.base_url = api_base_url
-                        print(get_translation(user_lang, "api_login_successful").format(api_base_url))
+                        print(get_translation(self.user_lang, "api_login_successful").format(api_base_url))
                     else:
-                        print(get_translation(user_lang, "no_api_base_url_found"))
+                        print(get_translation(self.user_lang, "no_api_base_url_found"))
                 else:
-                    print(get_translation(user_lang, "no_server_name_found"))
+                    print(get_translation(self.user_lang, "no_server_name_found"))
             if embed.description:
                 clean_description = remove_markdown(embed.description)
             if embed.author and embed.author.name:
@@ -122,7 +122,7 @@ class MyBot(commands.Bot):
                     logging.info(f"Embed Author Name: {get_author_name()}")
                     logging.info(f"Detected team: {team}")
                 else:
-                    logging.error("Could not extract author name and team from the embed author. Falling back to message.author.display_name")
+                    logging.error("Could not extract author name and team from embed author. Falling back to message.author.display_name")
                     set_author_name(message.author.display_name)
             else:
                 set_author_name(message.author.display_name)
@@ -130,19 +130,16 @@ class MyBot(commands.Bot):
         if not clean_description:
             return
 
-        # Hole alle validierten Spielernamen über die API
         players_fast = await self.api_client.get_players()
         if players_fast and 'result' in players_fast:
             valid_player_names = [player['name'] for player in players_fast['result']]
         else:
             valid_player_names = []
 
-        # Entferne alle Spielernamen aus dem Text, bevor er an die KI übergeben wird
         text_to_classify = remove_player_names(clean_description, valid_player_names)
 
-        # --- Triggerwörter für Squad-Reports einfügen ---
         trigger_words = [
-            "able", "baker", "charlie", "commander", "kommandant", "dog", "easy", "fox",
+            "able", "baker", "charlie", "commander", "dog", "easy", "fox",
             "george", "how", "item", "jig", "king", "love", "mike", "negat", "option",
             "prep", "queen", "roger", "sugar", "tare", "uncle", "victor", "william",
             "x-ray", "yoke", "zebra"
@@ -152,218 +149,262 @@ class MyBot(commands.Bot):
             logging.info("Identified as unit report.")
             trigger_word_index = next(i for i, part in enumerate(reported_parts) if part in trigger_words)
             unit_name = reported_parts[trigger_word_index]
-            if "commander" in reported_parts or "kommandant" in reported_parts:
+            if "commander" in reported_parts:
                 unit_name = "command"
             roles = ["officer", "spotter", "tankcommander", "armycommander"]
-            logging.info(f"Unit name: {unit_name}, Roles: {roles}")
             if 'team' in locals() and team:
                 await self.find_and_respond_unit(team, unit_name, roles, message)
             else:
                 logging.error("Team not identified for unit report.")
             return
-        # --- Ende Triggerwörter-Block ---
 
-        # KI-basierte Klassifikation: Text klassifizieren und Begründung erhalten
-        kategorie, begruendung = await classify_report_text(self.ai_client, text_to_classify, self.user_lang)
-        logging.info(f"[KI-Klassifizierung]: {kategorie} - {begruendung}")
+        detected_lang = await detect_language(self.ai_client, text_to_classify)
+        logging.info(f"[Language Detection] {detected_lang}")
 
-        # Fall "perma": Spieler permanent bannen
-        if kategorie == "perma":
+        # Spielertext -> user_lang
+        if detected_lang != self.user_lang:
+            text_for_embed = await translate_text(self.ai_client, text_to_classify, detected_lang, self.user_lang)
+        else:
+            text_for_embed = text_to_classify
+
+        # Grund-Embed
+        # Wir lassen es standardmäßig "blurple", überschreiben aber später je nach Fall.
+        embed_response = discord.Embed(color=discord.Color.blurple())
+        embed_response.add_field(
+            name=get_translation(self.user_lang, "player_text"),
+            value=text_for_embed,
+            inline=False
+        )
+
+        category, justification_playerlang = await classify_report_text(self.ai_client, text_to_classify, detected_lang)
+        logging.info(f"[AI Classification]: {category} - {justification_playerlang}")
+        justification_embedlang = await translate_text(self.ai_client, justification_playerlang, detected_lang, self.user_lang)
+
+        def add_justification_field(embed_obj, text_justification):
+            embed_obj.add_field(
+                name=get_translation(self.user_lang, "justification"),
+                value=text_justification,
+                inline=False
+            )
+            return embed_obj
+
+        if category == "perma":
             author_name = get_author_name() or message.author.display_name
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
             if author_player_id:
-                warning_text = await generate_warning_text(self.ai_client, author_name, begruendung, self.user_lang)
-                ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, warning_text)
-                blacklist_success = await self.api_client.add_blacklist_record(author_player_id, begruendung)
-                if ban_success and blacklist_success:
-                    log_entry = f"Automatischer Perma-Bann durch KI: {begruendung}"
-                    embed = discord.Embed(
-                        title=get_translation(self.user_lang, "automatic_perma_ban_title") or "Automatischer Perma-Bann",
-                        description=warning_text,
-                        color=discord.Color.red()
-                    )
-                    embed.add_field(name="Reporter (Melder)", value=author_name, inline=False)
-                    embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
-                    embed.add_field(name=get_translation(self.user_lang, "logbook"), value=log_entry, inline=False)
-                    await message.reply(embed=embed)
+                permaban_playerlang = await generate_permaban_text(self.ai_client, author_name, justification_playerlang, detected_lang)
+                permaban_embedlang = await translate_text(self.ai_client, permaban_playerlang, detected_lang, self.user_lang)
+
+                if not self.dry_run:
+                    ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, permaban_playerlang)
+                    blacklist_success = await self.api_client.add_blacklist_record(author_player_id, justification_playerlang)
                 else:
-                    logging.error("Perma-Bann oder Blacklist-Eintrag konnte nicht ausgeführt werden.")
+                    ban_success = True
+                    blacklist_success = True
+
+                if ban_success and blacklist_success:
+                    embed_response.title = get_translation(self.user_lang, "permanent_ban")
+                    embed_response.description = permaban_embedlang
+                    embed_response.color = discord.Color.red()  # Rot für Perma-Bann
+                    add_justification_field(embed_response, justification_embedlang)
+                    embed_response.add_field(
+                        name=get_translation(self.user_lang, "reporter"),
+                        value=author_name,
+                        inline=False
+                    )
+                    embed_response.add_field(
+                        name=get_translation(self.user_lang, "steam_id"),
+                        value=str(author_player_id),
+                        inline=False
+                    )
+                    await message.reply(embed=embed_response)
+                else:
+                    logging.error("Permanent ban or blacklist entry could not be executed.")
             else:
-                logging.error("Kein passender Spieler für den Perma-Bann gefunden.")
+                logging.error("No matching player found for permanent ban.")
             return
 
-        # Fall "beleidigung": Schweregrad ermitteln und entsprechende Maßnahmen ergreifen
-        if kategorie == "beleidigung":
-            severity, severity_reason = await classify_insult_severity(self.ai_client, text_to_classify, self.user_lang)
-            logging.info(f"Insult severity: {severity} - {severity_reason}")
+        elif category == "insult" or category == "temp_ban":
+            severity, severity_reason_playerlang = await classify_insult_severity(self.ai_client, text_to_classify, detected_lang)
+            logging.info(f"Insult severity: {severity} - {severity_reason_playerlang}")
+            severity_reason_embedlang = await translate_text(self.ai_client, severity_reason_playerlang, detected_lang, self.user_lang)
+
             author_name = get_author_name() or message.author.display_name
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
+
             if severity == "warning":
                 if author_player_id in self.warning_counts and self.warning_counts[author_player_id] >= 1:
-                    kick_text = await generate_kick_text(self.ai_client, author_name, severity_reason, self.user_lang)
+                    kick_playerlang = await generate_kick_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                    kick_embedlang = await translate_text(self.ai_client, kick_playerlang, detected_lang, self.user_lang)
+
                     if not self.dry_run:
-                        kick_success = await self.api_client.do_kick(author_name, author_player_id, kick_text)
+                        kick_success = await self.api_client.do_kick(author_name, author_player_id, kick_playerlang)
                     else:
                         kick_success = True
+
+                    embed_response.title = get_translation(self.user_lang, "kick")
+                    embed_response.description = kick_embedlang
+                    embed_response.color = discord.Color.blue()  # Blau für Kick
+                    add_justification_field(embed_response, severity_reason_embedlang)
+                    embed_response.add_field(
+                        name=get_translation(self.user_lang, "steam_id"),
+                        value=str(author_player_id),
+                        inline=False
+                    )
                     if self.dry_run:
-                        embed = discord.Embed(
-                            title="DRY RUN: Kick",
-                            description=f"DRY RUN: Kick für {author_name} – {severity_reason}",
-                            color=discord.Color.blue()
+                        embed_response.set_footer(text="DRY RUN: Test mode")
+                    elif not kick_success:
+                        embed_response.add_field(
+                            name=get_translation(self.user_lang, "error"),
+                            value="Kick could not be executed.",
+                            inline=False
                         )
-                    else:
-                        if kick_success:
-                            embed = discord.Embed(
-                                title="Kick",
-                                description=kick_text,
-                                color=discord.Color.blue()
-                            )
-                        else:
-                            embed = discord.Embed(
-                                title="Fehler",
-                                description="Kick konnte nicht ausgeführt werden.",
-                                color=discord.Color.blue()
-                            )
-                    embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
-                    embed.add_field(name="Begründung", value=severity_reason, inline=False)
-                    if self.dry_run:
-                        embed.set_footer(text="DRY RUN: Testmodus")
-                    await message.reply(embed=embed)
+                    await message.reply(embed=embed_response)
                     self.warning_counts[author_player_id] = 0
+
                 else:
-                    warning_text = await generate_warning_text(self.ai_client, author_name, severity_reason, self.user_lang)
-                    if author_player_id not in self.warning_counts:
-                        self.warning_counts[author_player_id] = 0
-                    self.warning_counts[author_player_id] += 1
-                    embed = discord.Embed(
-                        title="Verwarnung",
-                        description=warning_text,
-                        color=discord.Color.orange()
+                    # => Warning
+                    warning_playerlang = await generate_warning_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                    warning_embedlang = await translate_text(self.ai_client, warning_playerlang, detected_lang, self.user_lang)
+
+                    embed_response.title = get_translation(self.user_lang, "warning")
+                    embed_response.description = warning_embedlang
+                    embed_response.color = discord.Color.orange()  # Orange für Warning
+                    add_justification_field(embed_response, severity_reason_embedlang)
+                    embed_response.add_field(
+                        name=get_translation(self.user_lang, "steam_id"),
+                        value=str(author_player_id),
+                        inline=False
                     )
-                    embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
-                    embed.add_field(name="Begründung", value=severity_reason, inline=False)
                     if self.dry_run:
-                        embed.set_footer(text="DRY RUN: Testmodus")
+                        embed_response.set_footer(text="DRY RUN: Test mode")
                     else:
-                        await self.api_client.do_message_player(author_name, author_player_id, warning_text)
-                    await message.reply(embed=embed)
+                        await self.api_client.do_message_player(author_name, author_player_id, warning_playerlang)
+
+                    self.warning_counts.setdefault(author_player_id, 0)
+                    self.warning_counts[author_player_id] += 1
+
+                    await message.reply(embed=embed_response)
+
             elif severity == "temp_ban":
-                warning_text = await generate_warning_text(self.ai_client, author_name, severity_reason, self.user_lang)
+                bantext_playerlang = await generate_tempban_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                bantext_embedlang = await translate_text(self.ai_client, bantext_playerlang, detected_lang, self.user_lang)
+
                 if not self.dry_run:
-                    ban_success = await self.api_client.do_temp_ban(author_name, author_player_id, 24, warning_text)
-                if self.dry_run:
-                    embed = discord.Embed(
-                        title="DRY RUN: 24-Stunden-Bann",
-                        description=f"DRY RUN: Temp-Bann (24h) für {author_name} – {warning_text}",
-                        color=discord.Color.gold()
-                    )
+                    ban_success = await self.api_client.do_temp_ban(author_name, author_player_id, 24, bantext_playerlang)
                 else:
-                    if ban_success:
-                        embed = discord.Embed(
-                            title="24-Stunden-Bann",
-                            description=warning_text,
-                            color=discord.Color.gold()
-                        )
-                    else:
-                        embed = discord.Embed(
-                            title="Fehler",
-                            description="Temp-Bann konnte nicht ausgeführt werden.",
-                            color=discord.Color.gold()
-                        )
-                embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
-                embed.add_field(name="Begründung", value=severity_reason, inline=False)
+                    ban_success = True
+
+                embed_response.title = get_translation(self.user_lang, "24_hour_ban")
+                embed_response.description = bantext_embedlang
+                embed_response.color = discord.Color.gold()  # Gold für 24h-Bann
+                add_justification_field(embed_response, severity_reason_embedlang)
+                embed_response.add_field(
+                    name=get_translation(self.user_lang, "steam_id"),
+                    value=str(author_player_id),
+                    inline=False
+                )
+                if not ban_success:
+                    embed_response.add_field(
+                        name=get_translation(self.user_lang, "error"),
+                        value="Temp ban could not be executed.",
+                        inline=False
+                    )
                 if self.dry_run:
-                    embed.set_footer(text="DRY RUN: Testmodus")
-                await message.reply(embed=embed)
+                    embed_response.set_footer(text="DRY RUN: Test mode")
+                await message.reply(embed=embed_response)
+
             elif severity == "perma":
-                warning_text = await generate_warning_text(self.ai_client, author_name, severity_reason, self.user_lang)
+                perma_playerlang = await generate_permaban_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                perma_embedlang = await translate_text(self.ai_client, perma_playerlang, detected_lang, self.user_lang)
+
                 if not self.dry_run:
-                    ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, severity_reason)
-                    blacklist_success = await self.api_client.add_blacklist_record(author_player_id, severity_reason)
-                if self.dry_run:
-                    embed = discord.Embed(
-                        title="DRY RUN: Permanenter Bann",
-                        description=f"DRY RUN: Perma-Bann für {author_name} – {warning_text}",
-                        color=discord.Color.red()
-                    )
+                    ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, perma_playerlang)
+                    blacklist_success = await self.api_client.add_blacklist_record(author_player_id, severity_reason_playerlang)
                 else:
-                    if ban_success and blacklist_success:
-                        embed = discord.Embed(
-                            title="Permanenter Bann",
-                            description=warning_text,
-                            color=discord.Color.red()
-                        )
-                    else:
-                        embed = discord.Embed(
-                            title="Fehler",
-                            description="Perma-Bann konnte nicht ausgeführt werden.",
-                            color=discord.Color.red()
-                        )
-                embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
-                embed.add_field(name="Begründung", value=severity_reason, inline=False)
+                    ban_success, blacklist_success = True, True
+
+                embed_response.title = get_translation(self.user_lang, "permanent_ban")
+                embed_response.description = perma_embedlang
+                embed_response.color = discord.Color.red()  # Rot für Perma-Bann
+                add_justification_field(embed_response, severity_reason_embedlang)
+                embed_response.add_field(
+                    name=get_translation(self.user_lang, "steam_id"),
+                    value=str(author_player_id),
+                    inline=False
+                )
+                if not (ban_success and blacklist_success):
+                    embed_response.add_field(
+                        name=get_translation(self.user_lang, "error"),
+                        value="Permanent ban could not be executed.",
+                        inline=False
+                    )
                 if self.dry_run:
-                    embed.set_footer(text="DRY RUN: Testmodus")
-                await message.reply(embed=embed)
+                    embed_response.set_footer(text="DRY RUN: Test mode")
+                await message.reply(embed=embed_response)
             return
 
-        # Admin-Befehl prüfen – Nachricht beginnt mit "!admin"
+        # => !admin ...
         if clean_description.strip().lower().startswith("!admin"):
             admin_content = clean_description.strip()[len("!admin"):].strip()
-            # Hole die Liste gültiger Spielernamen (in Kleinbuchstaben)
             players_fast = await self.api_client.get_players()
             valid_player_names = []
             if players_fast and 'result' in players_fast:
-                valid_player_names = [player['name'].lower() for player in players_fast['result']]
-            # Suche im gesamten admin_content nach einem gültigen Spielernamen
+                valid_player_names = [p['name'].lower() for p in players_fast['result']]
             found_candidate = None
             for valid_name in valid_player_names:
                 if valid_name in admin_content.lower():
                     found_candidate = valid_name
                     break
             if found_candidate:
-                logging.info(f"Admin report detected. Reported identifier extracted: {found_candidate}")
+                logging.info(f"Admin report detected. Extracted identifier: {found_candidate}")
                 await self.find_and_respond_player(message, found_candidate)
                 return
             else:
-                # Kein gültiger Spielername: Positive Nachricht auslösen
+                # => Positive Meldung
                 author_name = get_author_name() or message.author.display_name
                 author_player_id = await get_playerid_from_name(author_name, self.api_client)
                 if author_player_id:
-                    positive_text = await generate_positive_response_text(self.ai_client, author_name, admin_content, self.user_lang)
-                    embed = discord.Embed(
-                        title=get_translation(self.user_lang, "positive_response_title"),
-                        description=positive_text,
-                        color=discord.Color.green()
-                    )
-                    embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
-                    await message.reply(embed=embed)
-                    await self.api_client.do_message_player(author_name, author_player_id, positive_text)
+                    pos_playerlang = await generate_positive_response_text(self.ai_client, author_name, admin_content, detected_lang)
+                    pos_embedlang = await translate_text(self.ai_client, pos_playerlang, detected_lang, self.user_lang)
+
+                    embed_response.title = get_translation(self.user_lang, "positive_response_title")
+                    embed_response.description = pos_embedlang
+                    embed_response.color = discord.Color.green()  # Grün für positive Meldung
+                    embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
+
+                    await message.reply(embed=embed_response)
+                    await self.api_client.do_message_player(author_name, author_player_id, pos_playerlang)
                 else:
-                    logging.error("Kein passender Spieler für den positiven Report gefunden.")
+                    logging.error("No matching player found for positive report.")
                 return
 
-        # Falls kein Admin-Befehl vorliegt und die Klassifikation "legitim" ist
-        if kategorie == "legitim":
+        # => legit
+        if category == "legit":
             author_name = get_author_name() or message.author.display_name
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
             if author_player_id:
-                positive_text = await generate_positive_response_text(self.ai_client, author_name, begruendung, self.user_lang)
-                embed = discord.Embed(
-                    title=get_translation(self.user_lang, "positive_response_title"),
-                    description=positive_text,
-                    color=discord.Color.green()
-                )
-                embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
-                await message.reply(embed=embed)
-                positive_dm = await generate_positive_response_text(self.ai_client, author_name, begruendung, self.user_lang)
-                await self.api_client.do_message_player(author_name, author_player_id, positive_dm)
+                pos_playerlang = await generate_positive_response_text(self.ai_client, author_name, justification_playerlang, detected_lang)
+                pos_embedlang = await translate_text(self.ai_client, pos_playerlang, detected_lang, self.user_lang)
+
+                embed_response.title = get_translation(self.user_lang, "positive_response_title")
+                embed_response.description = pos_embedlang
+                embed_response.color = discord.Color.green()  # Grün für positives Feedback
+                embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
+
+                await message.reply(embed=embed_response)
+                # DM
+                await self.api_client.do_message_player(author_name, author_player_id, pos_playerlang)
             else:
-                logging.error("Kein passender Spieler für den positiven Report gefunden.")
+                logging.error("No matching player found for positive report.")
             return
 
         logging.info("Classification unknown: no action taken.")
 
     async def show_punish_reporter(self, message: discord.Message, reason: str):
+        """
+        Falls der Reporter-Text selbst beleidigend ist, etc.
+        """
         fallback_name = message.author.display_name if message.author else None
         author_name = get_author_name() or fallback_name
         logging.info(f"show_punish_reporter: get_author_name() returned: {get_author_name()}, fallback: {fallback_name}")
@@ -381,8 +422,8 @@ class MyBot(commands.Bot):
             description=get_translation(self.user_lang, "reporter_insult_description").format(reason=reason),
             color=discord.Color.red()
         )
-        embed.add_field(name="Reporter (Melder)", value=author_name, inline=False)
-        embed.add_field(name="Steam-ID", value=str(author_player_id), inline=False)
+        embed.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
+        embed.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
 
         view = Reportview(self.api_client)
         await view.add_buttons(
@@ -397,7 +438,7 @@ class MyBot(commands.Bot):
     async def find_and_respond_unit(self, team, unit_name, roles, message):
         player_data = await self.api_client.get_detailed_players()
         if player_data is None or 'result' not in player_data or 'players' not in player_data['result']:
-            logging.error("Failed to retrieve player data or player data is incomplete.")
+            logging.error("Failed to retrieve detailed player data.")
             return
 
         if unit_name is None:
@@ -407,25 +448,24 @@ class MyBot(commands.Bot):
         for player_id, player_info in player_data['result']['players'].items():
             player_unit_name = player_info.get('unit_name', "") or ""
             if (
-                player_info['team'] and player_info['team'].lower() == team.lower()
-                and player_unit_name.lower() == unit_name.lower()
-                and player_info['role'].lower() in [role.lower() for role in roles]
+                player_info['team'] and player_info['team'].lower() == team.lower() and
+                player_unit_name.lower() == unit_name.lower() and
+                player_info['role'].lower() in [r.lower() for r in roles]
             ):
-                player_details = {
+                matching_player = {
                     "name": player_info['name'],
                     "level": player_info['level'],
                     "kills": player_info['kills'],
                     "deaths": player_info['deaths'],
                     "player_id": player_info['player_id'],
                 }
-                matching_player = player_details
                 break
 
         if matching_player:
             player_additional_data = await self.api_client.get_player_by_id(matching_player['player_id'])
             embed = await unitreportembed(
                 player_additional_data,
-                user_lang,
+                self.user_lang,
                 unit_name,
                 roles,
                 team,
@@ -433,7 +473,7 @@ class MyBot(commands.Bot):
             )
             view = Reportview(self.api_client)
             await view.add_buttons(
-                user_lang,
+                self.user_lang,
                 matching_player['name'],
                 player_additional_data['player_id']
             )
@@ -442,7 +482,7 @@ class MyBot(commands.Bot):
         else:
             await self.player_not_found(message)
 
-        logging.info(get_translation(user_lang, "response_sent").format(unit_name=unit_name, roles=', '.join(roles), team=team))
+        logging.info(get_translation(self.user_lang, "response_sent").format(unit_name=unit_name, roles=', '.join(roles), team=team))
 
     async def find_and_respond_player(self, message, reported_identifier,
                                       max_levenshtein_distance=3,
@@ -469,7 +509,8 @@ class MyBot(commands.Bot):
                     if levenshtein_score <= max_combined_score_threshold or jaro_score >= jaro_winkler_threshold:
                         combined_score = levenshtein_score + (1 - jaro_score)
                         logging.info(
-                            f"Scores for '{reported_word}' vs '{cleaned_player_name}': Levenshtein = {levenshtein_score}, Jaro = {jaro_score}, Combined = {combined_score}"
+                            f"Scores for '{reported_word}' vs '{cleaned_player_name}': "
+                            f"Levenshtein = {levenshtein_score}, Jaro = {jaro_score}, Combined = {combined_score}"
                         )
                         if combined_score < best_score and combined_score <= max_combined_score_threshold:
                             best_score = combined_score
@@ -487,12 +528,12 @@ class MyBot(commands.Bot):
                 None
             )
             if player_stats:
-                logging.info(get_translation(user_lang, "best_match_found").format(best_match))
+                logging.info(get_translation(self.user_lang, "best_match_found").format(best_match))
                 player_additional_data = await self.api_client.get_player_by_id(best_player_data['player_id'])
                 total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
                 total_playtime_hours = total_playtime_seconds / 3600
                 embed = await playerreportembed(
-                    user_lang,
+                    self.user_lang,
                     best_match,
                     player_stats,
                     total_playtime_hours,
@@ -502,7 +543,7 @@ class MyBot(commands.Bot):
                 self.last_response_message_id = response_message.id
                 view = Reportview(self.api_client)
                 await view.add_buttons(
-                    user_lang,
+                    self.user_lang,
                     best_match,
                     best_player_data['player_id']
                 )

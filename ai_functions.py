@@ -7,23 +7,206 @@ load_dotenv()
 
 MODEL = os.getenv("OPENAI_API_MODEL", "gpt-4o-mini")
 
-# Lade die Prompts aus der JSON-Datei
+# Lade Prompts
 with open("prompts.json", "r", encoding="utf8") as f:
     prompts = json.load(f)
 
-def get_prompt(prompt_key: str, lang: str, **kwargs) -> str:
-    template = prompts.get(prompt_key, {}).get(lang)
-    if template:
-        return template.format(**kwargs)
-    return ""
+def load_prompt_text(prompt_key: str, lang: str) -> str:
+    """
+    Lädt den Prompttext aus prompts.json.
+    Fallback: Falls lang nicht in (en, de) ist => englisches Prompt.
+    """
+    if lang not in ("en", "de"):
+        base_lang = "en"
+    else:
+        base_lang = lang
+    prompt_data = prompts.get(prompt_key, {})
+    return prompt_data.get(base_lang, "")
 
-async def generate_warning_text(ai_client, author_name: str, reason: str, lang: str) -> str:
-    prompt = get_prompt("generate_warning_text", lang, author_name=author_name, reason=reason)
+async def detect_language(ai_client, text: str) -> str:
+    """
+    Erkennt die Sprache (ISO-Kürzel, z.B. 'en', 'de', 'fr', 'es').
+    Bei Fehler => 'en'.
+    """
+    if not text.strip():
+        return "en"
+    system_prompt = (
+        "You are a language detection model. "
+        "Return ONLY the ISO-639-1 code of the text (e.g. 'en', 'de', 'fr', 'es'). "
+        "No explanations, no extra text."
+    )
+    user_prompt = f"{text}\n"
+
     try:
         response = await ai_client.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=60,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=5,
+            temperature=0.0
+        )
+        detected = response.choices[0].message.content.strip().lower()
+        # Bekannte Sprachen kurz prüfen:
+        if detected.startswith("de"):
+            return "de"
+        elif detected.startswith("fr"):
+            return "fr"
+        elif detected.startswith("es"):
+            return "es"
+        elif detected.startswith("en"):
+            return "en"
+        # Falls z.B. "pt" etc. => nimm das
+        if len(detected) >= 2:
+            return detected[:2]
+        return "en"
+    except Exception as e:
+        logging.error(f"Error detecting language: {e}")
+        return "en"
+
+async def translate_text(ai_client, original_text: str, from_lang: str, to_lang: str) -> str:
+    """
+    Übersetzt original_text von from_lang nach to_lang mithilfe eines OpenAI-Systemprompts.
+    Falls from_lang == to_lang, gib original_text unverändert zurück.
+    """
+    if not original_text.strip():
+        return original_text
+    if from_lang == to_lang:
+        return original_text  # Keine Übersetzung nötig
+
+    # System-Prompt, der nur den übersetzten Text zurückgibt.
+    system_prompt = (
+        f"You are a translation model. Translate the following from {from_lang} to {to_lang}. "
+        "Return only the translated text, nothing else."
+    )
+    user_prompt = original_text
+
+    try:
+        response = await ai_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=500,
+            temperature=0.0
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logging.error(f"Error translating text: {e}")
+        return original_text
+
+# --- Klassifizierung (erzeugt reason_text in Spieler-Sprache) ---
+async def classify_report_text(ai_client, text: str, user_language: str) -> tuple[str, str]:
+    """
+    Weist den Text einer Kategorie zu: legit, insult, temp_ban, perma, unknown.
+    => Prompt-Template basierend auf (en/de).
+    => System-Prompt erzwingt Antwort in user_language.
+    => reason_text kommt in user_language zurück.
+    """
+    base_prompt = load_prompt_text("classify_report_text", user_language)
+    user_content = base_prompt.format(
+        text=text,
+        legit="legit",
+        insult="insult",
+        temp_ban="temp_ban",
+        perma="perma",
+        unknown="unknown",
+        category="CATEGORY",
+        reason="REASON"
+    )
+    system_prompt = f"You are a helpful assistant. The user speaks {user_language}. Always answer in {user_language}."
+
+    try:
+        response = await ai_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        full_answer = response.choices[0].message.content.strip()
+        category = "unknown"
+        reason_text = ""
+        for ln in full_answer.splitlines():
+            ln = ln.strip()
+            if ln.lower().startswith("category:"):
+                val = ln[9:].strip().lower()
+                if "legit" in val:
+                    category = "legit"
+                elif "insult" in val:
+                    category = "insult"
+                elif "temp_ban" in val:
+                    category = "temp_ban"
+                elif "perma" in val:
+                    category = "perma"
+                else:
+                    category = "unknown"
+            elif ln.lower().startswith("reason:"):
+                reason_text = ln.split(":", 1)[1].strip()
+        return (category, reason_text)
+    except Exception as e:
+        logging.error(f"[AI Error in classify_report_text] {e}")
+        return ("unknown", "")
+
+async def classify_insult_severity(ai_client, text: str, user_language: str) -> tuple[str, str]:
+    """
+    Ermittelt Schweregrad: warning / temp_ban / perma
+    => reason kommt in user_language raus.
+    """
+    base_prompt = load_prompt_text("classify_insult_severity", user_language)
+    user_content = base_prompt.format(
+        text=text,
+        warning="warning",
+        temp_ban="temp_ban",
+        perma="perma",
+        category="CATEGORY",
+        reason="REASON"
+    )
+    system_prompt = f"You are a helpful assistant. The user speaks {user_language}. Always answer in {user_language}."
+
+    try:
+        response = await ai_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=100,
+            temperature=0.7
+        )
+        full_answer = response.choices[0].message.content.strip()
+        severity = "warning"
+        reason = ""
+        for ln in full_answer.splitlines():
+            ln = ln.strip()
+            if ln.lower().startswith("severity:"):
+                severity = ln.split(":", 1)[1].strip().lower()
+            elif ln.lower().startswith("reason:"):
+                reason = ln.split(":", 1)[1].strip()
+        return (severity, reason)
+    except Exception as e:
+        logging.error(f"[AI Severity Error] {e}")
+        return ("warning", "Error determining severity; defaulting to warning")
+
+# --- Generierung von Text an den Spieler (Warn, Kick, TempBan, PermaBan, Positive) ---
+
+async def generate_warning_text(ai_client, author_name: str, reason: str, user_language: str) -> str:
+    prompt = load_prompt_text("generate_warning_text", user_language)
+    user_content = prompt.format(author_name=author_name, reason=reason)
+    system_prompt = f"The user (player) speaks {user_language}. Always respond in {user_language}."
+
+    try:
+        response = await ai_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=120,
             temperature=0.7
         )
         text = response.choices[0].message.content.strip()
@@ -32,15 +215,20 @@ async def generate_warning_text(ai_client, author_name: str, reason: str, lang: 
         return text
     except Exception as e:
         logging.error(f"Error generating warning text: {e}")
-        return f"Hey {author_name}, änder dein Verhalten, sonst gibt's Ärger!"
+        return f"Hey {author_name}, change your behavior or there will be consequences!"
 
-async def generate_tempban_text(ai_client, author_name: str, reason: str, lang: str) -> str:
-    prompt = get_prompt("generate_tempban_text", lang, author_name=author_name, reason=reason)
+async def generate_tempban_text(ai_client, author_name: str, reason: str, user_language: str) -> str:
+    prompt = load_prompt_text("generate_tempban_text", user_language)
+    user_content = prompt.format(author_name=author_name, reason=reason)
+    system_prompt = f"The user (player) speaks {user_language}. Always respond in {user_language}."
     try:
         response = await ai_client.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=80,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=120,
             temperature=0.7
         )
         text = response.choices[0].message.content.strip()
@@ -49,15 +237,20 @@ async def generate_tempban_text(ai_client, author_name: str, reason: str, lang: 
         return text
     except Exception as e:
         logging.error(f"Error generating temp ban text: {e}")
-        return f"Hey {author_name}, du bekommst 24h Bann – ändere sofort dein Verhalten!"
+        return f"Hey {author_name}, you will receive a 24-hour ban – change your behavior immediately!"
 
-async def generate_permaban_text(ai_client, author_name: str, reason: str, lang: str) -> str:
-    prompt = get_prompt("generate_permaban_text", lang, author_name=author_name, reason=reason)
+async def generate_permaban_text(ai_client, author_name: str, reason: str, user_language: str) -> str:
+    prompt = load_prompt_text("generate_permaban_text", user_language)
+    user_content = prompt.format(author_name=author_name, reason=reason)
+    system_prompt = f"The user (player) speaks {user_language}. Always respond in {user_language}."
     try:
         response = await ai_client.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=80,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=120,
             temperature=0.7
         )
         text = response.choices[0].message.content.strip()
@@ -66,15 +259,20 @@ async def generate_permaban_text(ai_client, author_name: str, reason: str, lang:
         return text
     except Exception as e:
         logging.error(f"Error generating perma ban text: {e}")
-        return f"Hey {author_name}, dein Verhalten ist untragbar – du bist dauerhaft aus Hell Let Loose ausgeschlossen!"
+        return f"Hey {author_name}, your behavior is unacceptable – you are permanently banned!"
 
-async def generate_kick_text(ai_client, author_name: str, reason: str, lang: str) -> str:
-    prompt = get_prompt("generate_kick_text", lang, author_name=author_name, reason=reason)
+async def generate_kick_text(ai_client, author_name: str, reason: str, user_language: str) -> str:
+    prompt = load_prompt_text("generate_kick_text", user_language)
+    user_content = prompt.format(author_name=author_name, reason=reason)
+    system_prompt = f"The user (player) speaks {user_language}. Always respond in {user_language}."
     try:
         response = await ai_client.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=80,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=120,
             temperature=0.7
         )
         text = response.choices[0].message.content.strip()
@@ -83,71 +281,26 @@ async def generate_kick_text(ai_client, author_name: str, reason: str, lang: str
         return text
     except Exception as e:
         logging.error(f"Error generating kick text: {e}")
-        return f"Hey {author_name}, du wirst jetzt gekickt, weil dein Verhalten nicht akzeptabel ist!"
+        return f"Hey {author_name}, you are being kicked because your behavior is not acceptable!"
 
-async def classify_report_text(ai_client, text: str, lang: str) -> tuple[str, str]:
-    prompt = get_prompt("classify_report_text", lang, text=text)
+async def generate_positive_response_text(ai_client, author_name, context_text, user_language):
+    """
+    Für 'legit' oder positive Admin-Antworten.
+    """
+    prompt = load_prompt_text("generate_positive_response_text", user_language)
+    user_content = prompt.format(author_name=author_name, reason=context_text)
+    system_prompt = f"The user (player) speaks {user_language}. Always respond in {user_language}."
     try:
         response = await ai_client.chat.completions.create(
             model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=100,
-            temperature=0.8
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=120,
+            temperature=0.7
         )
-        full_answer = response.choices[0].message.content.strip()
-        kategorie = "unbekannt"
-        begruendung = ""
-        for ln in full_answer.splitlines():
-            ln = ln.strip()
-            if ln.lower().startswith("kategorie:"):
-                val = ln[10:].strip().lower()
-                if "legitim" in val:
-                    kategorie = "legitim"
-                elif "beleidigung" in val:
-                    kategorie = "beleidigung"
-                elif "perma" in val:
-                    kategorie = "perma"
-                else:
-                    kategorie = "unbekannt"
-            elif ln.lower().startswith("begründung:") or ln.lower().startswith("begruendung:"):
-                begruendung = ln.split(":", 1)[1].strip()
-        return (kategorie, begruendung)
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        logging.error(f"[KI-Fehler] {e}")
-        return ("unbekannt", "")
-
-async def classify_insult_severity(ai_client, text: str, lang: str) -> tuple[str, str]:
-    prompt = get_prompt("classify_insult_severity", lang, text=text)
-    try:
-        response = await ai_client.chat.completions.create(
-            model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=60,
-            temperature=0.0
-        )
-        full_answer = response.choices[0].message.content.strip()
-        severity = "warning"
-        reason = ""
-        for ln in full_answer.splitlines():
-            ln = ln.strip()
-            if ln.lower().startswith("schweregrad:"):
-                severity = ln.split(":", 1)[1].strip().lower()
-            elif ln.lower().startswith("begründung:") or ln.lower().startswith("begruendung:"):
-                reason = ln.split(":", 1)[1].strip()
-        return (severity, reason)
-    except Exception as e:
-        logging.error(f"[KI-Schweregrad-Fehler] {e}")
-        return ("warning", "Fehler bei der Schweregradbestimmung, Standard: Verwarnung")
-
-async def generate_positive_response_text(ai_client, author_name, context_text, user_lang):
-    prompt = get_prompt("generate_positive_response_text", user_lang, author_name=author_name, reason=context_text)
-    response = await ai_client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=60,
-        temperature=0.8
-    )
-    generated_text = response.choices[0].message.content.strip()
-    return generated_text
-
-
+        logging.error(f"Error generating positive text: {e}")
+        return "I'm glad you appreciate it!"
