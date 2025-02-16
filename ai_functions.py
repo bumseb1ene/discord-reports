@@ -45,13 +45,18 @@ async def analyze_text(ai_client, text: str, user_lang: str) -> dict:
         }
 
     system_prompt = (
-        "You are a concise text analyzer. Your default output language must be the one specified by the bot's {user_lang} setting. "
+        f"You are a concise text analyzer. Your default output language must be the one specified by the bot's {user_lang} setting. "
         f"If the text is clearly written in a language other than {user_lang} (either English or German), then detect and indicate that language. "
         "However, if the text contains ambiguous words that could belong to either language, or if it is very short or consists solely of common internet abbreviations or gaming jargon (e.g. 'haha', 'lol', 'gg'), always respond in the language specified by user_lang. "
         f"For example, if user_lang is '{user_lang}', even ambiguous words must result in a {user_lang} response. "
-        "Treat mild negative phrases like 'das ist doof' as 'legit' (not as an insult). For strong hate speech, severe insults, or discriminatory language, classify as 'insult' or 'perma' accordingly. "
+        "Treat mild negative phrases like 'das ist doof' as 'legit' (not as an insult). For strong hate speech, severe insults, or discriminatory language, normally classify as 'insult' or 'perma'. "
+        "However, if the text is a report of violations committed by other players (for example, insults, racism, anti-Semitism, or NS slogans in voice chat), always classify the text as 'legit'. "
+        "Advertising for right-wing extremist parties such as the AfD should be classified as 'perma'. "
+        "Note: Hell Let Loose uses the American military alphabet from World War II for squad names. Therefore, references such as 'love' (e.g. Officer Love of the Love Squad) must not be interpreted as insults. "
         "Output strictly in valid JSON with these keys: {\"lang\": \"...\", \"category\": \"...\", \"severity\": \"...\", \"reason\": \"...\"}"
     )
+
+
 
     user_prompt = f"""
 1) Which ISO-639-1 language code best matches this text? (e.g. 'en', 'de')
@@ -79,7 +84,7 @@ Text: {text}
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=300,
+            max_tokens=150,
             temperature=0.0
         )
         raw_answer = response.choices[0].message.content.strip()

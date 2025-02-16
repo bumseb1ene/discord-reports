@@ -190,13 +190,10 @@ class MyBot(commands.Bot):
             logging.info("on_message: No description to process => returning.")
             return
 
-        # --- Admin-Befehl-Check (vor Unit-Report) ---
-        if clean_description.strip().lower().startswith("admin") or clean_description.strip().lower().startswith("!admin"):
+        # --- Admin-Befehl-Check (nur Nachrichten, die mit !admin beginnen) ---
+        if clean_description.strip().lower().startswith("!admin"):
             logging.info("on_message: Admin-Befehl erkannt => Bearbeite Admin-Inhalt.")
-            if clean_description.strip().lower().startswith("admin"):
-                admin_content = clean_description.strip()[len("admin"):].strip()
-            else:
-                admin_content = clean_description.strip()[len("!admin"):].strip()
+            admin_content = clean_description.strip()[len("!admin"):].strip()
             
             # Zuerst den Inhalt analysieren, um zu prüfen, ob er als legit klassifiziert wird:
             admin_analysis = await analyze_text(self.ai_client, admin_content, self.user_lang)
@@ -253,8 +250,10 @@ class MyBot(commands.Bot):
                     if response_sent:
                         return
 
-        # --- Normaler Workflow: Spieler-Daten holen und Text zum Klassifizieren vorbereiten ---
-        logging.info("on_message: Attempting to retrieve current players from API.")
+        # --- Normaler Workflow (keine !admin Nachricht) ---
+        # In diesem Zweig werden nun keine Spieler- oder Squad-Zuordnungen mehr vorgenommen.
+        # Stattdessen wird nur eine positive/neutralen Meldung zurückgesendet.
+        logging.info("on_message: Keine !admin Anweisung erkannt -> Führe positiven/neutralen Workflow aus.")
         players_fast = await self.api_client.get_players()
         if players_fast and 'result' in players_fast:
             valid_player_names = [player['name'] for player in players_fast['result']]
@@ -263,11 +262,9 @@ class MyBot(commands.Bot):
             valid_player_names = []
             logging.error("on_message: Failed to retrieve valid player names.")
 
-        # Entfernen echter Spieler-Namen vor KI-Klassifizierung
         text_to_classify = remove_player_names(clean_description, valid_player_names)
         logging.info("on_message: text_to_classify (with names removed): '%s'", text_to_classify)
 
-        # --- KI-Analyse (Sprache, Kategorie, Schweregrad) ---
         analysis = await analyze_text(self.ai_client, text_to_classify, self.user_lang)
         detected_lang = analysis["lang"] or "en"
         category = analysis["category"] or "unknown"
@@ -277,11 +274,9 @@ class MyBot(commands.Bot):
         logging.info("on_message: AI analyze result => lang=%s, category=%s, severity=%s, reason=%s",
                      detected_lang, category, severity, justification_playerlang)
 
-        # Keine Übersetzung: Texte werden direkt in der eingestellten Sprache (user_lang) verwendet.
         text_for_embed = text_to_classify
         justification_embedlang = justification_playerlang
 
-        # Workflow für "perma", "insult" oder "temp_ban":
         if category == "perma":
             logging.info("on_message: Category is 'perma' -> Attempting permanent ban workflow.")
             author_name = get_author_name() or message.author.display_name
@@ -300,7 +295,6 @@ class MyBot(commands.Bot):
                 embed_response.title = get_translation(self.user_lang, "permanent_ban")
                 embed_response.description = permaban_text
                 embed_response = self.add_justification_field(embed_response, justification_embedlang)
-                # Beide Felder hinzufügen: Reporter und Steam-ID
                 embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
                 embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
                 await message.reply(embed=embed_response)
@@ -392,21 +386,13 @@ class MyBot(commands.Bot):
                 await message.reply(embed=embed_response)
             return
 
-        # Falls die Kategorie "legit" ist, führen wir den normalen (positiven) Workflow aus.
-        if category == "legit":
+        elif category == "legit":
             logging.info("on_message: Category='legit' => Positive / Neutral Meldung.")
-            # Optional: Versuch, ob find_and_respond_player einen Treffer erzielt.
             author_name = get_author_name() or message.author.display_name
-            response_sent = await self.find_and_respond_player(message, text_to_classify)
-            if response_sent:
-                return
-
-            # Fallback, falls keine Zuordnung erfolgte:
             pos_text = await generate_positive_response_text(self.ai_client, author_name, justification_playerlang, self.user_lang)
             embed_response = discord.Embed(color=discord.Color.green())
             embed_response.title = get_translation(self.user_lang, "positive_response_title")
             embed_response.description = pos_text
-            # Beide Felder hinzufügen: Reporter und Steam-ID (falls vorhanden)
             embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
             steam_id_value = str(author_player_id) if author_player_id else "N/A"
@@ -445,8 +431,9 @@ class MyBot(commands.Bot):
             await self.api_client.do_message_player(author_name, author_player_id, pos_text)
         return True
 
-    # Funktion zur Spielerzuordnung – gibt True zurück, falls bereits eine Antwort gesendet wurde
-    async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=2) -> bool:
+    # Funktion zur Spielerzuordnung – gibt True zurück, falls bereits eine Antwort gesendet wurde.
+    # Diese Funktion wird nun ausschließlich im Admin-Workflow aufgerufen.
+    async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=1) -> bool:
         logging.info("find_and_respond_player: Called with reported_identifier='%s'.", reported_identifier)
         reported_identifier_cleaned = remove_bracketed_content(reported_identifier)
         potential_names = find_player_names(reported_identifier_cleaned, self.excluded_words)
@@ -509,7 +496,8 @@ class MyBot(commands.Bot):
                     return True
         return False
 
-    # Funktion zur Squad-Zuordnung – gibt True zurück, falls bereits eine Antwort gesendet wurde
+    # Funktion zur Squad-Zuordnung – gibt True zurück, falls bereits eine Antwort gesendet wurde.
+    # Diese Funktion wird nun ausschließlich im Admin-Workflow aufgerufen.
     async def find_and_respond_unit(self, team, unit_name, roles, message) -> bool:
         logging.info("find_and_respond_unit: Called with team=%s, unit_name=%s, roles=%s", team, unit_name, roles)
         player_data = await self.api_client.get_detailed_players()

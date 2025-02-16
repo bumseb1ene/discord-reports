@@ -258,13 +258,13 @@
     "author_name_not_found": "Autorname nicht gefunden.",
     "error_retrieving_players": "Fehler beim Abrufen der Spieler.",
     "justification": "Begründung",
-    "warning": "Verwarnung",
+    "warning": "KI-Admin - Verwarnung",
     "kick": "Kick",
-    "24_hour_ban": "24-Stunden-Bann",
-    "permanent_ban": "Permanenter Bann",
+    "24_hour_ban": "KI-Admin - 24-Stunden-Bann",
+    "permanent_ban": "KI-Admin - Permanenter Bann",
     "error": "Fehler",
     "reporter": "Melder",
-    "positive_response_title": "Positive Rückmeldung",
+    "positive_response_title": "KI-Admin",
     "player_text": "Meldung des Spielers"
   }
 }
