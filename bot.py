@@ -29,7 +29,6 @@ from messages import unitreportembed, playerreportembed, player_not_found_embed,
 # AI functions
 from ai_functions import (
     analyze_text,
-    translate_text,
     generate_positive_response_text,
     generate_warning_text,
     generate_tempban_text,
@@ -204,7 +203,6 @@ class MyBot(commands.Bot):
             logging.info("on_message: Admin-Analyse-Ergebnis: Kategorie=%s", admin_analysis["category"])
             if admin_analysis["category"] != "legit":
                 logging.info("on_message: Admin-Inhalt wird als '%s' klassifiziert – Admin-Workflow überspringen.", admin_analysis["category"])
-                # In diesem Fall wird der Text später im normalen Workflow (KI-Analyse) verarbeitet.
             else:
                 players_fast = await self.api_client.get_players()
                 valid_player_names = []
@@ -223,12 +221,14 @@ class MyBot(commands.Bot):
                     if found_candidate:
                         break
     
+                # Wenn ein Kandidat gefunden wurde, versuchen wir den Spieler-Workflow.
                 if found_candidate:
                     logging.info("on_message: Admin report detected => calling find_and_respond_player with '%s'.", found_candidate)
-                    await self.find_and_respond_player(message, found_candidate)
-                    return
+                    response_sent = await self.find_and_respond_player(message, found_candidate)
+                    if response_sent:
+                        return
                 else:
-                    # Kein passender Spieler gefunden – nun versuchen, ob ein Squad (Unit) referenziert wird:
+                    # Falls kein Spieler gefunden wurde, versuchen wir den Squad-Workflow.
                     trigger_words = [
                         "able", "baker", "charlie", "commander", "dog", "easy", "fox",
                         "george", "how", "item", "jig", "king", "love", "mike", "negat", "option",
@@ -243,25 +243,14 @@ class MyBot(commands.Bot):
                             logging.info("on_message: Detected potential unit in admin content: '%s'", potential_unit)
                             break
                     if potential_unit and 'team' in locals() and team:
-                        roles = ["officer", "spotter", "tankcommander", "armycommander"]
-                        await self.find_and_respond_unit(team, potential_unit, roles, message)
-                        return
-                    else:
-                        logging.info("on_message: Admin text is positive or no direct match found => treat as positive feedback.")
-                        author_name = get_author_name() or message.author.display_name
-                        author_player_id = await get_playerid_from_name(author_name, self.api_client)
-                        if author_player_id:
-                            pos_playerlang = await generate_positive_response_text(self.ai_client, author_name, admin_content, self.user_lang)
-                            pos_embedlang = await translate_text(self.ai_client, pos_playerlang, self.user_lang, self.user_lang)
-                            embed_response = discord.Embed(color=discord.Color.green())
-                            embed_response.title = get_translation(self.user_lang, "positive_response_title")
-                            embed_response.description = pos_embedlang
-                            embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
-                            logging.info("DEBUG final EMBED => title=%s, desc=%s, fields=%s", embed_response.title, embed_response.description, [(f.name, f.value) for f in embed_response.fields])
-                            await message.reply(embed=embed_response)
-    
-                            if not self.dry_run:
-                                await self.api_client.do_message_player(author_name, author_player_id, pos_playerlang)
+                        response_sent = await self.find_and_respond_unit(team, potential_unit, ["officer", "spotter", "tankcommander", "armycommander"], message)
+                        if response_sent:
+                            return
+                    # Falls weder Spieler noch Squad zugeordnet werden konnten, wird der Fallback in on_message ausgeführt.
+                    logging.info("on_message: Kein direkter Treffer gefunden im Admin-Workflow. Führe Fallback aus.")
+                    fallback_identifier = admin_content
+                    response_sent = await self.fallback_response(message, fallback_identifier)
+                    if response_sent:
                         return
 
         # --- Normaler Workflow: Spieler-Daten holen und Text zum Klassifizieren vorbereiten ---
@@ -283,71 +272,38 @@ class MyBot(commands.Bot):
         detected_lang = analysis["lang"] or "en"
         category = analysis["category"] or "unknown"
         justification_playerlang = analysis["reason"] or ""
-        severity = analysis["severity"]  # kann None sein
+        severity = analysis["severity"]
 
         logging.info("on_message: AI analyze result => lang=%s, category=%s, severity=%s, reason=%s",
                      detected_lang, category, severity, justification_playerlang)
 
-        if detected_lang != self.user_lang:
-            logging.info("on_message: Translating text_to_classify from %s to %s.", detected_lang, self.user_lang)
-            text_for_embed = await translate_text(self.ai_client, text_to_classify, detected_lang, self.user_lang)
-            justification_embedlang = await translate_text(self.ai_client, justification_playerlang, detected_lang, self.user_lang)
-        else:
-            text_for_embed = text_to_classify
-            justification_embedlang = justification_playerlang
+        # Keine Übersetzung: Texte werden direkt in der eingestellten Sprache (user_lang) verwendet.
+        text_for_embed = text_to_classify
+        justification_embedlang = justification_playerlang
 
-        embed_response = discord.Embed(color=discord.Color.blurple())
-        embed_response.add_field(
-            name=get_translation(self.user_lang, "player_text"),
-            value=text_for_embed,
-            inline=False
-        )
-
-        def add_justification_field(embed_obj, text_justification):
-            embed_obj.add_field(
-                name=get_translation(self.user_lang, "justification"),
-                value=text_justification,
-                inline=False
-            )
-            return embed_obj
-
+        # Workflow für "perma", "insult" oder "temp_ban":
         if category == "perma":
             logging.info("on_message: Category is 'perma' -> Attempting permanent ban workflow.")
             author_name = get_author_name() or message.author.display_name
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
             if author_player_id:
-                logging.info("on_message: Attempting to permanently ban '%s' (id=%s)", author_name, author_player_id)
-                permaban_playerlang = await generate_permaban_text(self.ai_client, author_name, justification_playerlang, detected_lang)
-                permaban_embedlang = await translate_text(self.ai_client, permaban_playerlang, detected_lang, self.user_lang)
-
+                permaban_text = await generate_permaban_text(self.ai_client, author_name, justification_playerlang, self.user_lang)
                 if not self.dry_run:
-                    ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, permaban_playerlang)
+                    ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, permaban_text)
                     blacklist_success = await self.api_client.add_blacklist_record(author_player_id, justification_playerlang)
                 else:
                     logging.info("on_message: DRY_RUN active => skipping real ban/blacklist calls.")
                     ban_success = True
                     blacklist_success = True
 
-                if ban_success and blacklist_success:
-                    logging.info("on_message: Permanent ban + blacklist entry successful for '%s'.", author_name)
-                    embed_response.title = get_translation(self.user_lang, "permanent_ban")
-                    embed_response.description = permaban_embedlang
-                    embed_response.color = discord.Color.red()
-                    add_justification_field(embed_response, justification_embedlang)
-                    embed_response.add_field(
-                        name=get_translation(self.user_lang, "reporter"),
-                        value=author_name,
-                        inline=False
-                    )
-                    embed_response.add_field(
-                        name=get_translation(self.user_lang, "steam_id"),
-                        value=str(author_player_id),
-                        inline=False
-                    )
-                    logging.info("DEBUG final EMBED => title=%s, desc=%s, fields=%s", embed_response.title, embed_response.description, [(f.name, f.value) for f in embed_response.fields])
-                    await message.reply(embed=embed_response)
-                else:
-                    logging.error("on_message: Permanent ban or blacklist entry could not be executed.")
+                embed_response = discord.Embed(color=discord.Color.red())
+                embed_response.title = get_translation(self.user_lang, "permanent_ban")
+                embed_response.description = permaban_text
+                embed_response = self.add_justification_field(embed_response, justification_embedlang)
+                # Beide Felder hinzufügen: Reporter und Steam-ID
+                embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
+                embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
+                await message.reply(embed=embed_response)
             else:
                 logging.error("on_message: No matching player found for permanent ban => aborting.")
             return
@@ -356,127 +312,76 @@ class MyBot(commands.Bot):
             logging.info("on_message: Category is '%s' => Checking severity: %s", category, severity)
             author_name = get_author_name() or message.author.display_name
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
-
             if not author_player_id:
                 logging.error("on_message: No matching player found => skipping insult/kick/ban.")
                 return
 
             if severity == "warning":
-                logging.info("on_message: severity='warning'. Checking if user has prior warnings.")
                 if author_player_id in self.warning_counts and self.warning_counts[author_player_id] >= 1:
-                    logging.info("on_message: Second violation detected => Kick user '%s'.", author_name)
-                    kick_playerlang = await generate_kick_text(self.ai_client, author_name, justification_playerlang, detected_lang)
-                    kick_embedlang = await translate_text(self.ai_client, kick_playerlang, detected_lang, self.user_lang)
-
+                    kick_text = await generate_kick_text(self.ai_client, author_name, justification_playerlang, self.user_lang)
                     if not self.dry_run:
-                        kick_success = await self.api_client.do_kick(author_name, author_player_id, kick_playerlang)
+                        kick_success = await self.api_client.do_kick(author_name, author_player_id, kick_text)
                     else:
-                        logging.info("on_message: DRY_RUN => skipping do_kick call.")
                         kick_success = True
 
+                    embed_response = discord.Embed(color=discord.Color.blue())
                     embed_response.title = get_translation(self.user_lang, "kick")
-                    embed_response.description = kick_embedlang
-                    embed_response.color = discord.Color.blue()
-                    add_justification_field(embed_response, justification_embedlang)
-                    embed_response.add_field(
-                        name=get_translation(self.user_lang, "steam_id"),
-                        value=str(author_player_id),
-                        inline=False
-                    )
+                    embed_response.description = kick_text
+                    embed_response = self.add_justification_field(embed_response, justification_embedlang)
+                    embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
+                    embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
                     if self.dry_run:
                         embed_response.set_footer(text="DRY RUN: Test mode")
-                    elif not kick_success:
-                        embed_response.add_field(
-                            name=get_translation(self.user_lang, "error"),
-                            value="Kick could not be executed.",
-                            inline=False
-                        )
-
-                    logging.info("DEBUG final EMBED => title=%s, desc=%s, fields=%s", embed_response.title, embed_response.description, [(f.name, f.value) for f in embed_response.fields])
                     await message.reply(embed=embed_response)
                     self.warning_counts[author_player_id] = 0
-
                 else:
-                    logging.info("on_message: First violation => Issue a warning to '%s'.", author_name)
-                    warning_playerlang = await generate_warning_text(self.ai_client, author_name, justification_playerlang, detected_lang)
-                    warning_embedlang = await translate_text(self.ai_client, warning_playerlang, detected_lang, self.user_lang)
-
+                    warning_text = await generate_warning_text(self.ai_client, author_name, justification_playerlang, self.user_lang)
+                    embed_response = discord.Embed(color=discord.Color.orange())
                     embed_response.title = get_translation(self.user_lang, "warning")
-                    embed_response.description = warning_embedlang
-                    embed_response.color = discord.Color.orange()
-                    add_justification_field(embed_response, justification_embedlang)
-                    embed_response.add_field(
-                        name=get_translation(self.user_lang, "steam_id"),
-                        value=str(author_player_id),
-                        inline=False
-                    )
+                    embed_response.description = warning_text
+                    embed_response = self.add_justification_field(embed_response, justification_embedlang)
+                    embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
+                    embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
                     if self.dry_run:
                         embed_response.set_footer(text="DRY RUN: Test mode")
                     else:
-                        await self.api_client.do_message_player(author_name, author_player_id, warning_playerlang)
-
+                        await self.api_client.do_message_player(author_name, author_player_id, warning_text)
                     self.warning_counts.setdefault(author_player_id, 0)
                     self.warning_counts[author_player_id] += 1
-
-                    logging.info("DEBUG final EMBED => title=%s, desc=%s, fields=%s", embed_response.title, embed_response.description, [(f.name, f.value) for f in embed_response.fields])
                     await message.reply(embed=embed_response)
 
             elif severity == "temp_ban":
-                logging.info("on_message: severity='temp_ban' => 24h ban for '%s'.", author_name)
-                bantext_playerlang = await generate_tempban_text(self.ai_client, author_name, justification_playerlang, detected_lang)
-                bantext_embedlang = await translate_text(self.ai_client, bantext_playerlang, detected_lang, self.user_lang)
-
+                ban_text = await generate_tempban_text(self.ai_client, author_name, justification_playerlang, self.user_lang)
                 if not self.dry_run:
-                    ban_success = await self.api_client.do_temp_ban(author_name, author_player_id, 24, bantext_playerlang)
+                    ban_success = await self.api_client.do_temp_ban(author_name, author_player_id, 24, ban_text)
                 else:
-                    logging.info("on_message: DRY_RUN => skipping do_temp_ban call.")
                     ban_success = True
 
+                embed_response = discord.Embed(color=discord.Color.gold())
                 embed_response.title = get_translation(self.user_lang, "24_hour_ban")
-                embed_response.description = bantext_embedlang
-                embed_response.color = discord.Color.gold()
-                add_justification_field(embed_response, justification_embedlang)
-                embed_response.add_field(
-                    name=get_translation(self.user_lang, "steam_id"),
-                    value=str(author_player_id),
-                    inline=False
-                )
-                if not ban_success:
-                    logging.error("on_message: 24-hour ban could not be executed.")
-                    embed_response.add_field(
-                        name=get_translation(self.user_lang, "error"),
-                        value="Temp ban could not be executed.",
-                        inline=False
-                    )
+                embed_response.description = ban_text
+                embed_response = self.add_justification_field(embed_response, justification_embedlang)
+                embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
+                embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
                 if self.dry_run:
                     embed_response.set_footer(text="DRY RUN: Test mode")
-
-                logging.info("DEBUG final EMBED => title=%s, desc=%s, fields=%s", embed_response.title, embed_response.description, [(f.name, f.value) for f in embed_response.fields])
                 await message.reply(embed=embed_response)
 
             elif severity == "perma":
-                logging.info("on_message: severity='perma' => Attempting permanent ban for '%s'.", author_name)
-                perma_playerlang = await generate_permaban_text(self.ai_client, author_name, justification_playerlang, detected_lang)
-                perma_embedlang = await translate_text(self.ai_client, perma_playerlang, detected_lang, self.user_lang)
-
+                perma_text = await generate_permaban_text(self.ai_client, author_name, justification_playerlang, self.user_lang)
                 if not self.dry_run:
-                    ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, perma_playerlang)
+                    ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, perma_text)
                     blacklist_success = await self.api_client.add_blacklist_record(author_player_id, justification_playerlang)
                 else:
-                    logging.info("on_message: DRY_RUN => skipping do_perma_ban & add_blacklist_record.")
                     ban_success, blacklist_success = True, True
 
+                embed_response = discord.Embed(color=discord.Color.red())
                 embed_response.title = get_translation(self.user_lang, "permanent_ban")
-                embed_response.description = perma_embedlang
-                embed_response.color = discord.Color.red()
-                add_justification_field(embed_response, justification_embedlang)
-                embed_response.add_field(
-                    name=get_translation(self.user_lang, "steam_id"),
-                    value=str(author_player_id),
-                    inline=False
-                )
+                embed_response.description = perma_text
+                embed_response = self.add_justification_field(embed_response, justification_embedlang)
+                embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
+                embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
                 if not (ban_success and blacklist_success):
-                    logging.error("on_message: Perma ban or blacklist entry could not be executed for '%s'.", author_name)
                     embed_response.add_field(
                         name=get_translation(self.user_lang, "error"),
                         value="Permanent ban could not be executed.",
@@ -484,77 +389,133 @@ class MyBot(commands.Bot):
                     )
                 if self.dry_run:
                     embed_response.set_footer(text="DRY RUN: Test mode")
-
-                logging.info("DEBUG final EMBED => title=%s, desc=%s, fields=%s", embed_response.title, embed_response.description, [(f.name, f.value) for f in embed_response.fields])
                 await message.reply(embed=embed_response)
             return
 
+        # Falls die Kategorie "legit" ist, führen wir den normalen (positiven) Workflow aus.
         if category == "legit":
             logging.info("on_message: Category='legit' => Positive / Neutral Meldung.")
+            # Optional: Versuch, ob find_and_respond_player einen Treffer erzielt.
             author_name = get_author_name() or message.author.display_name
+            response_sent = await self.find_and_respond_player(message, text_to_classify)
+            if response_sent:
+                return
+
+            # Fallback, falls keine Zuordnung erfolgte:
+            pos_text = await generate_positive_response_text(self.ai_client, author_name, justification_playerlang, self.user_lang)
+            embed_response = discord.Embed(color=discord.Color.green())
+            embed_response.title = get_translation(self.user_lang, "positive_response_title")
+            embed_response.description = pos_text
+            # Beide Felder hinzufügen: Reporter und Steam-ID (falls vorhanden)
+            embed_response.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
-            if author_player_id:
-                pos_playerlang = await generate_positive_response_text(self.ai_client, author_name, justification_playerlang, detected_lang)
-                pos_embedlang = await translate_text(self.ai_client, pos_playerlang, detected_lang, self.user_lang)
-
-                embed_response.title = get_translation(self.user_lang, "positive_response_title")
-                embed_response.description = pos_embedlang
-                embed_response.color = discord.Color.green()
-                embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
-
-                logging.info("DEBUG final EMBED => title=%s, desc=%s, fields=%s", embed_response.title, embed_response.description, [(f.name, f.value) for f in embed_response.fields])
-                await message.reply(embed=embed_response)
-
-                if not self.dry_run:
-                    await self.api_client.do_message_player(author_name, author_player_id, pos_playerlang)
-                else:
-                    logging.info("on_message: DRY_RUN => skipping do_message_player call.")
-            else:
-                logging.error("on_message: No matching player found for positive report => skipping.")
+            steam_id_value = str(author_player_id) if author_player_id else "N/A"
+            embed_response.add_field(name=get_translation(self.user_lang, "steam_id"), value=steam_id_value, inline=False)
+            await message.reply(embed=embed_response)
+            if author_player_id and not self.dry_run:
+                await self.api_client.do_message_player(author_name, author_player_id, pos_text)
             return
 
         logging.info("on_message: Classification unknown => No specific action performed.")
 
-    async def show_punish_reporter(self, message: discord.Message, reason: str):
-        logging.info("show_punish_reporter: Called with reason='%s'.", reason)
-        fallback_name = message.author.display_name if message.author else None
-        author_name = get_author_name() or fallback_name
-        logging.info("show_punish_reporter: Determined author_name='%s'.", author_name)
+    # Helper: fügt ein Justification-Feld zum Embed hinzu
+    def add_justification_field(self, embed_obj, text_justification):
+        embed_obj.add_field(
+            name=get_translation(self.user_lang, "justification"),
+            value=text_justification,
+            inline=False
+        )
+        return embed_obj
 
-        if not author_name:
-            logging.error("show_punish_reporter: Could not retrieve any author_name => returning.")
-            return
-
-        author_player_id = await get_playerid_from_name(author_name, self.api_client)
-        if not author_player_id:
-            logging.error("show_punish_reporter: Could not find player id for author '%s'.", author_name)
-            return
-
+    # Fallback-Antwort, wenn weder Spieler noch Squad zugeordnet werden konnten
+    async def fallback_response(self, message, identifier) -> bool:
+        author_name = get_author_name() or message.author.display_name
+        pos_text = await generate_positive_response_text(self.ai_client, author_name, identifier, self.user_lang)
         embed = discord.Embed(
-            title=get_translation(self.user_lang, "reporter_insult_title"),
-            description=get_translation(self.user_lang, "reporter_insult_description").format(reason=reason),
-            color=discord.Color.red()
+            title=get_translation(self.user_lang, "positive_response_title"),
+            description=pos_text,
+            color=discord.Color.green()
         )
         embed.add_field(name=get_translation(self.user_lang, "reporter"), value=author_name, inline=False)
-        embed.add_field(name=get_translation(self.user_lang, "steam_id"), value=str(author_player_id), inline=False)
+        author_player_id = await get_playerid_from_name(author_name, self.api_client)
+        steam_id_value = str(author_player_id) if author_player_id else "N/A"
+        embed.add_field(name=get_translation(self.user_lang, "steam_id"), value=steam_id_value, inline=False)
+        await message.reply(embed=embed)
+        if author_player_id and not self.dry_run:
+            await self.api_client.do_message_player(author_name, author_player_id, pos_text)
+        return True
 
-        view = Reportview(self.api_client)
-        await view.add_buttons(
-            user_lang=self.user_lang,
-            reported_player_name=author_name,
-            player_id=author_player_id,
-            self_report=True,
-            player_found=True
-        )
-        await message.reply(embed=embed, view=view)
-        logging.info("show_punish_reporter: Sent embed with punish options for reporter '%s'.", author_name)
+    # Funktion zur Spielerzuordnung – gibt True zurück, falls bereits eine Antwort gesendet wurde
+    async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=2) -> bool:
+        logging.info("find_and_respond_player: Called with reported_identifier='%s'.", reported_identifier)
+        reported_identifier_cleaned = remove_bracketed_content(reported_identifier)
+        potential_names = find_player_names(reported_identifier_cleaned, self.excluded_words)
+        logging.info("find_and_respond_player: Potential names after cleaning: %s", potential_names)
 
-    async def find_and_respond_unit(self, team, unit_name, roles, message):
+        players_fast = await self.api_client.get_players()
+        if not players_fast or 'result' not in players_fast:
+            logging.error("find_and_respond_player: Failed to retrieve players list.")
+            return False
+
+        best_match = None
+        best_player_data = None
+        best_score = float('inf')
+
+        for player in players_fast['result']:
+            cleaned_player_name = remove_clantags(player['name'].lower())
+            player_name_words = cleaned_player_name.split()
+
+            for reported_word in potential_names:
+                for player_word in player_name_words:
+                    dist = levenshtein_distance(reported_word.lower(), player_word.lower())
+                    if dist <= max_levenshtein_distance and dist < best_score:
+                        best_score = dist
+                        best_match = player['name']
+                        best_player_data = player
+                        logging.info("find_and_respond_player: New best match '%s' (dist=%d)", best_match, best_score)
+
+        if best_match:
+            logging.info("find_and_respond_player: Best match = '%s' => retrieving live game stats.", best_match)
+            live_game_stats = await self.api_client.get_player_data(best_player_data['player_id'])
+            if live_game_stats and 'result' in live_game_stats and 'stats' in live_game_stats['result']:
+                player_stats = next(
+                    (item for item in live_game_stats['result']['stats'] if item['player_id'] == best_player_data['player_id']),
+                    None
+                )
+                if player_stats:
+                    logging.info("find_and_respond_player: Found player_stats for '%s'.", best_match)
+                    player_additional_data = await self.api_client.get_player_by_id(best_player_data['player_id'])
+                    total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
+                    total_playtime_hours = total_playtime_seconds / 3600
+
+                    embed = await playerreportembed(
+                        self.user_lang,
+                        best_match,
+                        player_stats,
+                        total_playtime_hours,
+                        best_player_data
+                    )
+                    response_message = await message.reply(embed=embed)
+                    self.last_response_message_id = response_message.id
+
+                    view = Reportview(self.api_client)
+                    await view.add_buttons(
+                        self.user_lang,
+                        best_match,
+                        best_player_data['player_id']
+                    )
+                    await response_message.edit(view=view)
+                    logging.info("find_and_respond_player: Sent player report embed for '%s' (ID=%s).", best_match, best_player_data['player_id'])
+                    return True
+        return False
+
+    # Funktion zur Squad-Zuordnung – gibt True zurück, falls bereits eine Antwort gesendet wurde
+    async def find_and_respond_unit(self, team, unit_name, roles, message) -> bool:
         logging.info("find_and_respond_unit: Called with team=%s, unit_name=%s, roles=%s", team, unit_name, roles)
         player_data = await self.api_client.get_detailed_players()
         if player_data is None or 'result' not in player_data or 'players' not in player_data['result']:
             logging.error("find_and_respond_unit: Failed to retrieve detailed player data.")
-            return
+            return False
 
         trigger_words = [
             "able", "baker", "charlie", "dog", "easy", "fox",
@@ -575,11 +536,9 @@ class MyBot(commands.Bot):
         matching_player = None
         for player_id, player_info in player_data['result']['players'].items():
             player_unit_name = player_info.get('unit_name', "") or ""
-            if (
-                player_info['team'] and player_info['team'].lower() == team.lower() and
+            if (player_info['team'] and player_info['team'].lower() == team.lower() and
                 player_unit_name.lower() == unit_name.lower() and
-                player_info['role'].lower() in [r.lower() for r in roles]
-            ):
+                player_info['role'].lower() in [r.lower() for r in roles]):
                 matching_player = {
                     "name": player_info['name'],
                     "level": player_info['level'],
@@ -607,113 +566,14 @@ class MyBot(commands.Bot):
                 player_additional_data['player_id']
             )
             response_message = await message.reply(embed=embed, view=view)
-            self.last_response_message_id = response_message.id
             logging.info("find_and_respond_unit: Successfully sent unit report embed for player '%s'.", matching_player['name'])
-        else:
-            logging.info("find_and_respond_unit: No matching player found => calling player_not_found().")
-            await self.player_not_found(message)
-
-        logging.info("find_and_respond_unit: Response sent for unit_name='%s', roles='%s', team='%s'", unit_name, ', '.join(roles), team)
-
-    async def find_and_respond_player(self, message, reported_identifier, max_levenshtein_distance=2, jaro_winkler_threshold=0.85):
-        logging.info("find_and_respond_player: Called with reported_identifier='%s'.", reported_identifier)
-        reported_identifier_cleaned = remove_bracketed_content(reported_identifier)
-        potential_names = find_player_names(reported_identifier_cleaned, self.excluded_words)
-        logging.info("find_and_respond_player: Potential names after cleaning: %s", potential_names)
-
-        players_fast = await self.api_client.get_players()
-        if not players_fast or 'result' not in players_fast:
-            logging.error("find_and_respond_player: Failed to retrieve players list.")
-            return
-
-        best_match = None
-        best_player_data = None
-        best_score = float('inf')
-
-        for player in players_fast['result']:
-            cleaned_player_name = remove_clantags(player['name'].lower())
-            player_name_words = cleaned_player_name.split()
-
-            for reported_word in potential_names:
-                for player_word in player_name_words:
-                    dist = levenshtein_distance(reported_word.lower(), player_word.lower())
-                    if dist <= max_levenshtein_distance:
-                        if dist < best_score:
-                            best_score = dist
-                            best_match = player['name']
-                            best_player_data = player
-                            logging.info("find_and_respond_player: New best match '%s' (dist=%d)", best_match, best_score)
-
-        if best_match:
-            logging.info("find_and_respond_player: Best match = '%s' => retrieving live game stats.", best_match)
-            live_game_stats = await self.api_client.get_player_data(best_player_data['player_id'])
-            if not live_game_stats or 'result' not in live_game_stats or 'stats' not in live_game_stats['result']:
-                logging.error("find_and_respond_player: Failed to retrieve live game stats for '%s'.", best_match)
-                return
-
-            player_stats = next(
-                (item for item in live_game_stats['result']['stats'] if item['player_id'] == best_player_data['player_id']),
-                None
-            )
-            if player_stats:
-                logging.info("find_and_respond_player: Found player_stats for '%s'.", best_match)
-                player_additional_data = await self.api_client.get_player_by_id(best_player_data['player_id'])
-                total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
-                total_playtime_hours = total_playtime_seconds / 3600
-
-                embed = await playerreportembed(
-                    self.user_lang,
-                    best_match,
-                    player_stats,
-                    total_playtime_hours,
-                    best_player_data
-                )
-                response_message = await message.reply(embed=embed)
-                self.last_response_message_id = response_message.id
-
-                view = Reportview(self.api_client)
-                await view.add_buttons(
-                    self.user_lang,
-                    best_match,
-                    best_player_data['player_id']
-                )
-                await response_message.edit(view=view)
-                logging.info("find_and_respond_player: Sent player report embed for '%s' (ID=%s).", best_match, best_player_data['player_id'])
-            else:
-                logging.info("find_and_respond_player: No player_stats found => calling player_not_found.")
-                await self.player_not_found(message)
-        else:
-            logging.info("find_and_respond_player: No best match => calling player_not_found.")
-            await self.player_not_found(message)
-
-    async def player_not_found(self, message):
-        logging.info("player_not_found: No matching player found => building fallback embed.")
-        author_name = get_author_name() or message.author.display_name
-        author_player_id = await get_playerid_from_name(author_name, self.api_client)
-        not_found_text = get_translation(self.user_lang, "player_not_found_auto_msg")
-
-        if author_player_id:
-            if not self.dry_run:
-                await self.api_client.do_message_player(author_name, author_player_id, not_found_text)
-            else:
-                logging.info("player_not_found: DRY_RUN => skipping do_message_player call.")
-        embed = await player_not_found_embed(author_player_id, author_name, self.user_lang)
-        view = Reportview(self.api_client)
-        await view.add_buttons(
-            user_lang=self.user_lang,
-            reported_player_name=author_name,
-            player_id=author_player_id,
-            self_report=False,
-            player_found=False
-        )
-        await message.reply(embed=embed, view=view)
-        logging.info("player_not_found: Sent 'player_not_found' embed to channel => author=%s, id=%s", author_name, author_player_id)
+            return True
+        return False
 
     async def on_close(self):
         logging.info("Bot is shutting down -> closing API client session.")
         if self.api_client.session:
             await self.api_client.close_session()
-
 
 bot = MyBot(intents)
 bot.run(TOKEN)

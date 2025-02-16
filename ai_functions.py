@@ -45,7 +45,7 @@ async def analyze_text(ai_client, text: str, user_lang: str) -> dict:
         }
 
     system_prompt = (
-        "You are a concise text analyzer. Your default output language must be the one specified by the bot's user_lang setting. "
+        "You are a concise text analyzer. Your default output language must be the one specified by the bot's {user_lang} setting. "
         f"If the text is clearly written in a language other than {user_lang} (either English or German), then detect and indicate that language. "
         "However, if the text contains ambiguous words that could belong to either language, or if it is very short or consists solely of common internet abbreviations or gaming jargon (e.g. 'haha', 'lol', 'gg'), always respond in the language specified by user_lang. "
         f"For example, if user_lang is '{user_lang}', even ambiguous words must result in a {user_lang} response. "
@@ -108,34 +108,7 @@ Text: {text}
             "reason": ""
         }
 
-async def translate_text(ai_client, original_text: str, from_lang: str, to_lang: str) -> str:
-    """
-    Übersetzt original_text von from_lang nach to_lang.
-    Sehr kurzer Prompt zur Token-Einsparung.
-    """
-    if not original_text.strip():
-        return original_text
-    if from_lang == to_lang:
-        return original_text
-
-    system_prompt = "You are a translator."
-    user_prompt = f"Translate from {from_lang} to {to_lang}:\n\n{original_text}\n"
-
-    try:
-        response = await ai_client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            max_tokens=300,
-            temperature=0.0
-        )
-        translated = response.choices[0].message.content.strip()
-        return translated
-    except Exception as e:
-        logging.error("Error translating text: %s", e)
-        return original_text
+# Übersetzungsfunktion entfernt – alle Texte werden direkt in user_lang generiert
 
 async def generate_warning_text(ai_client, author_name: str, reason: str, user_language: str) -> str:
     logging.info("generate_warning_text: %s, reason='%s'", author_name, reason)

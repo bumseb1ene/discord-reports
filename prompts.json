@@ -16,7 +16,7 @@
     "en": "Kick for {author_name}. Reason: {reason}. Keep it brief and to the point."
   },
   "generate_positive_response_text": {
-    "de": "Antworte direkt und humorvoll auf '{reason}' von {author_name}. Kurz und präzise (max 100 Zeichen). Nur nach Squad/Spielernamen fragen, wenn Kontext fehlt.",
+    "de": "Antworte direkt auf '{reason}' von {author_name}. Kurz und präzise (max 100 Zeichen). Nur nach Squad/Spielernamen fragen, wenn Kontext fehlt.",
     "en": "Reply directly to '{reason}' from {author_name}. Keep it brief (max 100 chars). Only ask for squad/player name if context is missing."
   }
 }
