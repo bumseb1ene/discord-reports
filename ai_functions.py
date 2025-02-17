@@ -261,10 +261,8 @@ async def classify_insult_severity(ai_client, text: str, user_language: str) -> 
         for ln in full_answer.splitlines():
             ln_stripped = ln.strip()
             ln_lower = ln_stripped.lower()
-            # Akzeptiere Zeilen, die entweder mit "severity:" oder "severity level:" beginnen
             if ln_lower.startswith("severity:") or ln_lower.startswith("severity level:"):
                 severity_val = ln_stripped.split(":", 1)[1].strip().lower()
-                # Durchsuche die bekannten Severity-Werte
                 found = False
                 for key in severity_levels.values():
                     if key in severity_val:
@@ -283,6 +281,58 @@ async def classify_insult_severity(ai_client, text: str, user_language: str) -> 
     except Exception as e:
         logging.error("[AI Severity Error] %s", e)
         return ("warning", "Error determining severity; defaulting to warning")
+
+async def classify_comprehensive(ai_client, text: str, user_language: str) -> tuple[str, str, str, str]:
+    """
+    Führt eine umfassende Klassifikation des Report-Textes durch.
+    Gibt ein Tuple zurück: (category, severity, reason, explanation)
+    """
+    logging.info("classify_comprehensive: Classifying text comprehensively => '%s'", text)
+    base_prompt = prompt_manager.get_nested_prompt("prompts.classification.comprehensive.templates.instructions", user_language)
+    max_length = prompt_manager.get_nested_prompt("prompts.classification.comprehensive.metadata.max_length", user_language)
+    
+    user_content = base_prompt.format(
+        text=text,
+        max_length=max_length,
+        legit="legit",
+        insult="insult",
+        temp_ban="temp_ban",
+        perma="perma",
+        unknown="unknown"
+    )
+    system_prompt = f"You are a helpful assistant. The user speaks {user_language}. Always answer in {user_language}."
+    
+    try:
+        response = await ai_client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            max_tokens=200,
+            temperature=0.7
+        )
+        full_answer = response.choices[0].message.content.strip()
+        logging.info("classify_comprehensive: Raw response => '%s'", full_answer)
+        
+        category, severity, reason, explanation = "unknown", "none", "", ""
+        for ln in full_answer.splitlines():
+            ln_stripped = ln.strip()
+            ln_lower = ln_stripped.lower()
+            if ln_lower.startswith("category:"):
+                category = ln_stripped.split(":", 1)[1].strip().lower()
+            elif ln_lower.startswith("severity:"):
+                severity = ln_stripped.split(":", 1)[1].strip().lower()
+            elif ln_lower.startswith("reason:"):
+                reason = ln_stripped.split(":", 1)[1].strip()
+            elif ln_lower.startswith("explanation:"):
+                explanation = ln_stripped.split(":", 1)[1].strip()
+        
+        return (category, severity, reason, explanation)
+    
+    except Exception as e:
+        logging.error("[AI Error in classify_comprehensive] %s", e)
+        return ("unknown", "none", "", "")
 
 async def generate_warning_text(ai_client, author_name: str, reason: str, user_language: str) -> str:
     logging.info("generate_warning_text: Generating warning text for '%s', reason='%s'", author_name, reason)

@@ -30,8 +30,7 @@ from messages import unitreportembed, playerreportembed, player_not_found_embed,
 from ai_functions import (
     detect_language,
     translate_text,
-    classify_report_text,
-    classify_insult_severity,
+    classify_comprehensive,
     generate_positive_response_text,
     generate_warning_text,
     generate_tempban_text,
@@ -53,7 +52,6 @@ console.setLevel(logging.DEBUG)  # Setzt die Konsole auf das gleiche Level
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 console.setFormatter(formatter)
 logging.getLogger().addHandler(console)
-
 
 load_dotenv()
 
@@ -174,8 +172,7 @@ class MyBot(commands.Bot):
                     team = match.group(2).strip()
                     logging.info("on_message: Extracted author name: '%s', Team: '%s'", get_author_name(), team)
                 else:
-                    logging.error("Could not extract author name and team from embed author: '%s'. "
-                                  "Falling back to message.author.display_name",
+                    logging.error("Could not extract author name and team from embed author: '%s'. Falling back to message.author.display_name",
                                   embed.author.name)
                     set_author_name(message.author.display_name)
             else:
@@ -245,10 +242,10 @@ class MyBot(commands.Bot):
             inline=False
         )
 
-        # --- KI: Klassifizierung in (legit, insult, temp_ban, perma, unknown) ---
-        category, subcategory, justification_playerlang = await classify_report_text(self.ai_client, text_to_classify, detected_lang)
-        logging.info("on_message: AI classification result: category=%s, reason=%s", category, justification_playerlang)
-        justification_embedlang = await translate_text(self.ai_client, justification_playerlang, detected_lang, self.user_lang)
+        # --- KI: Umfassende Klassifizierung ---
+        category, severity, reason_text, explanation = await classify_comprehensive(self.ai_client, text_to_classify, detected_lang)
+        logging.info("on_message: AI comprehensive classification: category=%s, severity=%s, reason=%s, explanation=%s", category, severity, reason_text, explanation)
+        justification_embedlang = await translate_text(self.ai_client, reason_text, detected_lang, self.user_lang)
 
         def add_justification_field(embed_obj, text_justification):
             embed_obj.add_field(
@@ -265,12 +262,12 @@ class MyBot(commands.Bot):
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
             if author_player_id:
                 logging.info("on_message: Attempting to permanently ban '%s' (id=%s)", author_name, author_player_id)
-                permaban_playerlang = await generate_permaban_text(self.ai_client, author_name, justification_playerlang, detected_lang)
+                permaban_playerlang = await generate_permaban_text(self.ai_client, author_name, reason_text, detected_lang)
                 permaban_embedlang = await translate_text(self.ai_client, permaban_playerlang, detected_lang, self.user_lang)
 
                 if not self.dry_run:
                     ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, permaban_playerlang)
-                    blacklist_success = await self.api_client.add_blacklist_record(author_player_id, justification_playerlang)
+                    blacklist_success = await self.api_client.add_blacklist_record(author_player_id, reason_text)
                 else:
                     logging.info("on_message: DRY_RUN active => skipping real ban/blacklist calls.")
                     ban_success = True
@@ -301,10 +298,9 @@ class MyBot(commands.Bot):
 
         # --- Fälle: 'insult' oder 'temp_ban' ---
         elif category == "insult" or category == "temp_ban":
-            logging.info("on_message: Category is '%s' => Checking insult severity.", category)
-            severity, severity_reason_playerlang = await classify_insult_severity(self.ai_client, text_to_classify, detected_lang)
-            logging.info("on_message: classify_insult_severity => severity=%s, reason=%s", severity, severity_reason_playerlang)
-            severity_reason_embedlang = await translate_text(self.ai_client, severity_reason_playerlang, detected_lang, self.user_lang)
+            logging.info("on_message: Category is '%s' => Processing based on severity.", category)
+            logging.info("on_message: Comprehensive severity: %s, reason: %s", severity, reason_text)
+            severity_reason_embedlang = await translate_text(self.ai_client, reason_text, detected_lang, self.user_lang)
 
             author_name = get_author_name() or message.author.display_name
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
@@ -314,7 +310,7 @@ class MyBot(commands.Bot):
                 if author_player_id in self.warning_counts and self.warning_counts[author_player_id] >= 1:
                     # => Kick
                     logging.info("on_message: Second violation detected => Kick user '%s'.", author_name)
-                    kick_playerlang = await generate_kick_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                    kick_playerlang = await generate_kick_text(self.ai_client, author_name, reason_text, detected_lang)
                     kick_embedlang = await translate_text(self.ai_client, kick_playerlang, detected_lang, self.user_lang)
 
                     if not self.dry_run:
@@ -348,7 +344,7 @@ class MyBot(commands.Bot):
                 else:
                     # => erste Warnung
                     logging.info("on_message: First violation => Issue a warning to '%s'.", author_name)
-                    warning_playerlang = await generate_warning_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                    warning_playerlang = await generate_warning_text(self.ai_client, author_name, reason_text, detected_lang)
                     warning_embedlang = await translate_text(self.ai_client, warning_playerlang, detected_lang, self.user_lang)
 
                     embed_response.title = get_translation(self.user_lang, "warning")
@@ -371,7 +367,7 @@ class MyBot(commands.Bot):
 
             elif severity == "temp_ban":
                 logging.info("on_message: severity='temp_ban' => 24h ban for '%s'.", author_name)
-                bantext_playerlang = await generate_tempban_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                bantext_playerlang = await generate_tempban_text(self.ai_client, author_name, reason_text, detected_lang)
                 bantext_embedlang = await translate_text(self.ai_client, bantext_playerlang, detected_lang, self.user_lang)
 
                 if not self.dry_run:
@@ -403,12 +399,12 @@ class MyBot(commands.Bot):
 
             elif severity == "perma":
                 logging.info("on_message: severity='perma' => Attempting permanent ban for '%s'.", author_name)
-                perma_playerlang = await generate_permaban_text(self.ai_client, author_name, severity_reason_playerlang, detected_lang)
+                perma_playerlang = await generate_permaban_text(self.ai_client, author_name, reason_text, detected_lang)
                 perma_embedlang = await translate_text(self.ai_client, perma_playerlang, detected_lang, self.user_lang)
 
                 if not self.dry_run:
                     ban_success = await self.api_client.do_perma_ban(author_name, author_player_id, perma_playerlang)
-                    blacklist_success = await self.api_client.add_blacklist_record(author_player_id, severity_reason_playerlang)
+                    blacklist_success = await self.api_client.add_blacklist_record(author_player_id, reason_text)
                 else:
                     logging.info("on_message: DRY_RUN => skipping do_perma_ban & add_blacklist_record.")
                     ban_success, blacklist_success = True, True
@@ -481,7 +477,7 @@ class MyBot(commands.Bot):
             author_name = get_author_name() or message.author.display_name
             author_player_id = await get_playerid_from_name(author_name, self.api_client)
             if author_player_id:
-                pos_playerlang = await generate_positive_response_text(self.ai_client, author_name, justification_playerlang, detected_lang)
+                pos_playerlang = await generate_positive_response_text(self.ai_client, author_name, reason_text, detected_lang)
                 pos_embedlang = await translate_text(self.ai_client, pos_playerlang, detected_lang, self.user_lang)
 
                 embed_response.title = get_translation(self.user_lang, "positive_response_title")
@@ -541,7 +537,7 @@ class MyBot(commands.Bot):
     async def find_and_respond_unit(self, team, unit_name, roles, message):
         """
         Sucht in den detaillierten Player-Daten nach einem Spieler, der zum Team und Unit-Namen passt,
-        und erstellt ein passendes Embd + Buttons.
+        und erstellt ein passendes Embed + Buttons.
         """
         logging.info("find_and_respond_unit: Called with team=%s, unit_name=%s, roles=%s", team, unit_name, roles)
         player_data = await self.api_client.get_detailed_players()
@@ -631,8 +627,7 @@ class MyBot(commands.Bot):
                     jaro_score = jaro_winkler(reported_word.lower(), player_word)
                     if levenshtein_score <= max_combined_score_threshold or jaro_score >= jaro_winkler_threshold:
                         combined_score = levenshtein_score + (1 - jaro_score)
-                        logging.info("find_and_respond_player: Checking '%s' vs '%s': "
-                                     "Levenshtein=%.2f, Jaro=%.2f, Combined=%.2f",
+                        logging.info("find_and_respond_player: Checking '%s' vs '%s': Levenshtein=%.2f, Jaro=%.2f, Combined=%.2f",
                                      reported_word, cleaned_player_name, levenshtein_score, jaro_score, combined_score)
                         if combined_score < best_score and combined_score <= max_combined_score_threshold:
                             best_score = combined_score
