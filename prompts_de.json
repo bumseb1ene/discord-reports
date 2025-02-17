@@ -1,0 +1,574 @@
+{
+    "application": {
+      "name": "Hell Let Loose Admin Bot",
+      "version": "0.4"
+    },
+    "prompts": {
+      "classification": {
+        "report": {
+          "metadata": {
+            "description": "Ordne den Report-Text einer Kategorie zu.",
+            "max_length": 186,
+            "ignore_verified_names": true,
+            "handle_irony": true
+          },
+          "templates": {
+            "instructions": "Du bist KI-Administrator bei 'Hell Let Loose'.\n\nKontext:\n{text}\n\nDeine Rolle:\nOrdne den Text einer der Kategorien zu: {legit}, {insult}, {temp_ban}, {perma} oder {unknown}.\n\nWICHTIG: Gib deine Antwort ausschließlich in Englisch zurück. Deine Antwort muss exakt wie folgt aufgebaut sein:\n1. Eine Zeile, die beginnt mit \"CATEGORY:\" gefolgt von einem der Werte: legit, insult, temp_ban, perma oder unknown.\n2. Eine Zeile, die beginnt mit \"REASON:\" gefolgt von deiner kurzen Begründung (max. {max_length} characters).\n\nRegeln:\n- Ignoriere bestätigte Spielernamen.\n- Bei Ironie: Behandle den Text ironisch.\n- Gib keine zusätzlichen Kommentare oder Erklärungen aus.",
+            "mapping": {
+              "legit": {
+                "description": "Hinweis auf ein Problem oder ironisch formuliert.",
+                "examples": [
+                  "!admin bumsebiene redet nicht",
+                  "!admin wir haben einen Cheater",
+                  "!admin Offizier love bringt NS-Parolen bei und besteht auf einen Kick",
+                  "Hinweis auf technische Probleme im Spiel",
+                  "Meldung über fehlerhafte Map-Daten",
+                  "Spieler berichtet von unerklärlichen Spielabbrüchen",
+                  "Informationen zu schlechter Kommunikation im Team",
+                  "Meldung über ungewöhnliches Verhalten ohne Beleidigung",
+                  "Hinweis auf einen Verdacht auf Cheat, aber unsicher",
+                  "Spieler äußert Bedenken bezüglich des Spielablaufs"
+                ],
+                "subcategories": {
+                  "technical": {
+                    "description": "Meldungen, die technische Probleme, Bugs oder Serverprobleme thematisieren.",
+                    "examples": [
+                      "Fehlerhafte Grafiken im Spiel",
+                      "Bug im Spielfluss",
+                      "Server laggt ständig",
+                      "Fehlende Texturen",
+                      "Unstabile Verbindung",
+                      "Kollidierende Objekte",
+                      "Soundfehler",
+                      "Ungewöhnliche Animationen",
+                      "Ständige Abstürze",
+                      "Probleme mit der Steuerung"
+                    ]
+                  },
+                  "communication": {
+                    "description": "Meldungen zu Problemen in der Kommunikation oder Teamarbeit.",
+                    "examples": [
+                      "Team redet nicht zusammen",
+                      "Unklare Anweisungen im Chat",
+                      "Schlechte Verständigung zwischen Spielern",
+                      "Verzögerte Reaktionen im Team",
+                      "Missverständnisse während des Spiels",
+                      "Keine Kommunikation im Team",
+                      "Chat ignoriert wichtige Infos",
+                      "Teamwork fehlt komplett",
+                      "Unzureichende Koordination",
+                      "Kommunikationsstörung im Spiel"
+                    ]
+                  },
+                  "general": {
+                    "description": "Allgemeine Hinweise und Verdachtsmomente, die keiner klaren Kategorie zugeordnet werden können.",
+                    "examples": [
+                      "Vermutung auf Cheat, aber unsicher",
+                      "Ungewöhnliches Spielerverhalten",
+                      "Verschwommene Beobachtungen",
+                      "Allgemeine Bedenken bezüglich des Spiels",
+                      "Indirekte Hinweise auf Regelverstöße",
+                      "Verdächtiges Verhalten, aber nicht eindeutig",
+                      "Unklare Situation im Spiel",
+                      "Probleme, die nicht eindeutig zugeordnet werden können",
+                      "Andeutungen von Unfairness",
+                      "Unbestimmte Beschwerden"
+                    ]
+                  }
+                }
+              },
+              "insult": {
+                "description": "Direkte Beleidigungen ohne Ironie.",
+                "examples": [
+                  "Dummer Pisser",
+                  "Du Arschloch",
+                  "Wichser",
+                  "Idiot",
+                  "Hornochse",
+                  "Drecksack",
+                  "Blödsinn",
+                  "Spasti",
+                  "Schwachkopf",
+                  "Miesepeter"
+                ],
+                "subcategories": {
+                  "mild": {
+                    "description": "Leichte, scherzhafte Beleidigungen.",
+                    "examples": [
+                      "Dummer Trottel",
+                      "Du bist doof",
+                      "Spasti",
+                      "Idiot, aber nur spaßig",
+                      "Narr",
+                      "Dummer Haufen",
+                      "Dussel",
+                      "Blödmann",
+                      "Trottel",
+                      "Du dummer Sack"
+                    ]
+                  },
+                  "strong": {
+                    "description": "Starke, verletzende Beleidigungen.",
+                    "examples": [
+                      "Du Arschloch",
+                      "Hau ab, du Versager",
+                      "Unverschämter Mistkerl",
+                      "Du bist eine Schande",
+                      "Du gottverdammter Idiot",
+                      "Du bist unerträglich",
+                      "Unverbesserlicher Dreckskerl",
+                      "Du bist der Inbegriff von Scheiße",
+                      "Vollidiot",
+                      "Unverbesserlicher Hurensohn"
+                    ]
+                  },
+                  "personal": {
+                    "description": "Beleidigungen, die sich speziell auf persönliche Eigenschaften beziehen.",
+                    "examples": [
+                      "Du bist hässlich",
+                      "Dein Gesicht ist ein Graus",
+                      "Du hast keine Ahnung",
+                      "Deine Intelligenz ist miserabel",
+                      "Du bist unfähig",
+                      "Deine Moral ist erbärmlich",
+                      "Du bist ein Versager",
+                      "Deine Persönlichkeit ist scheußlich",
+                      "Du bist jämmerlich",
+                      "Dein Verhalten ist armselig"
+                    ]
+                  }
+                }
+              },
+              "temp_ban": {
+                "description": "Krasse Beleidigungen, die zu einem 24-Stunden-Ban führen.",
+                "examples": [
+                  "Arschloch",
+                  "Deine Mutter ist ne Hure",
+                  "Verdammter Hurensohn",
+                  "Fick dich",
+                  "Du gottverdammter Idiot",
+                  "Unverbesserlicher Scheißkerl",
+                  "Schlecht dreckiger Hurensohn",
+                  "Verfickter Versager",
+                  "Du bist der Inbegriff von Scheiße",
+                  "Unverschämter Dreckskerl"
+                ],
+                "subcategories": {
+                  "very_strong": {
+                    "description": "Sehr starke Beleidigungen, die eindeutig eine temporäre Sperre rechtfertigen.",
+                    "examples": [
+                      "Verdammter Hurensohn",
+                      "Fick dich",
+                      "Scheißkerl, geh zur Hölle",
+                      "Unverbesserlicher Arschloch",
+                      "Du bist ein gottverdammter Idiot",
+                      "Verfickter Versager",
+                      "Du bist ein Scheißkerl",
+                      "Drecksack, fick dich",
+                      "Du bist absolut untragbar",
+                      "Verabscheuungswürdiger Mistkerl"
+                    ]
+                  },
+                  "provocative": {
+                    "description": "Beleidigungen, die provozieren und aggressives Verhalten hervorrufen.",
+                    "examples": [
+                      "Du bist ein Provokateur",
+                      "Hau ab, du Nervensäge",
+                      "Deine Anwesenheit ist eine Zumutung",
+                      "Du forderst nur Ärger",
+                      "Mit deinem Verhalten lädst du zum Streit ein",
+                      "Du bist nur ein Störenfried",
+                      "Du provozierst alle",
+                      "Dein Verhalten ist zum Anstoßen",
+                      "Du reißt andere in den Wahnsinn",
+                      "Mit dir ist nicht gut Kirschen essen"
+                    ]
+                  },
+                  "unacceptable": {
+                    "description": "Ausdrücke, die als unakzeptabel gelten, aber nicht ganz extrem genug für einen Permaban sind.",
+                    "examples": [
+                      "Du bist absolut unakzeptabel",
+                      "Dein Verhalten geht zu weit",
+                      "Das ist inakzeptabel",
+                      "Deine Worte sind nicht hinnehmbar",
+                      "Das ist schlichtweg nicht akzeptabel",
+                      "Untragbar, wie du dich benimmst",
+                      "So etwas ist nicht tolerierbar",
+                      "Deine Ausdrucksweise ist empörend",
+                      "Das überschreitet jede Grenze",
+                      "Dein Verhalten ist völlig unakzeptabel"
+                    ]
+                  }
+                }
+              },
+              "perma": {
+                "description": "Extreme Sprache, die einen permanenten Bann erfordert.",
+                "examples": [
+                  "heil hitler",
+                  "judensau",
+                  "Arbeit macht frei",
+                  "Deine Mutter ist ne Hure",
+                  "kys",
+                  "geh dich erhängen",
+                  "Antisemitismus",
+                  "Nazikriegstreiber",
+                  "Völkermord-Denker",
+                  "Extremistischer Fanatiker"
+                ],
+                "subcategories": {
+                  "racism": {
+                    "description": "Rassistischer Sprachgebrauch und Beleidigungen, die auf Hautfarbe, Herkunft o. Ä. abzielen.",
+                    "examples": [
+                      "judensau",
+                      "Negerkopf",
+                      "Zigeuner",
+                      "Du bist minderwertig",
+                      "Rassistischer Schwachsinn",
+                      "Hassrede gegen Schwarze",
+                      "Fremdenfeindliche Beleidigung",
+                      "Deine Rasse ist minderwertig",
+                      "Abwertende Aussagen über Asiaten",
+                      "Deine Hautfarbe ist ein Fehler"
+                    ]
+                  },
+                  "extremism": {
+                    "description": "Aussagen, die extremistische Ideologien unterstützen oder verbreiten.",
+                    "examples": [
+                      "heil hitler",
+                      "Nazikriegstreiber",
+                      "Völkermord-Denker",
+                      "Wir müssen das Volk reinigen",
+                      "Extremistische Parolen",
+                      "Aufruf zur Gewalt gegen Minderheiten",
+                      "Fanatismus pur",
+                      "Extremistische Ideologie",
+                      "Ruf nach autoritärer Ordnung",
+                      "Unverbesserlicher Fanatiker"
+                    ]
+                  },
+                  "hate_speech": {
+                    "description": "Ausdrücke, die Hass gegen bestimmte Gruppen schüren.",
+                    "examples": [
+                      "geh dich erhängen",
+                      "Du bist ein abscheulicher Mistkerl",
+                      "Hassrede gegen Muslime",
+                      "Ich hasse euch alle",
+                      "Eure Existenz ist unerträglich",
+                      "Unverschämte Hetze",
+                      "Ihr seid alle gleich wertlos",
+                      "Schimpfwörter gegen Migranten",
+                      "Abscheuliche Aussagen",
+                      "Hass gegen alle Andersdenkenden"
+                    ]
+                  },
+                  "advert_extremist_parties": {
+                    "description": "Werbung oder Propaganda für extremistische Parteien.",
+                    "examples": [
+                      "Unterstützt die neue Volkspartei – rein und stark!",
+                      "Unsere Partei bringt die wahre Freiheit – tretet bei!",
+                      "Extrem, patriotisch, alternativ – wählt die Volksfront!",
+                      "Für ein starkes Volk – mit unserer Partei an der Spitze!",
+                      "Die Alternative für das Volk – eure Stimme zählt!",
+                      "Schluss mit dem Establishment – unsere Partei rockt!",
+                      "Unsere Bewegung steht für echte Werte – jetzt wählen!",
+                      "Die Volkspartei: Für ein freies, starkes Land!",
+                      "Widerstand gegen das System – eure Stimme für Veränderung!",
+                      "Gemeinsam für eine neue Ära – wählt die Volksfront!"
+                    ]
+                  }
+                }
+              }
+            },
+            "response_format": "CATEGORY: ...\nREASON: ..."
+          },
+          "response_format": "CATEGORY: ...\nREASON: ..."
+        },
+        "insult": {
+          "metadata": {
+            "description": "Bestimme den Schweregrad der Beleidigung.",
+            "levels": {
+              "warning": "warning",
+              "temp_ban": "temp_ban",
+              "perma": "perma"
+            }
+          },
+          "templates": {
+            "instructions": "Du bist KI-Administrator bei 'Hell Let Loose'.\n\nHierum geht es: '{text}'\n\nDeine Rolle:\nBestimme, wie schwerwiegend diese Beleidigung ist.\n\nWICHTIG: Gib deine Antwort ausschließlich in Englisch zurück. Deine Antwort muss exakt wie folgt aufgebaut sein:\n1. Eine Zeile, die beginnt mit \"SEVERITY:\" gefolgt von einem der Werte: warning, temp_ban oder perma.\n2. Eine Zeile, die beginnt mit \"REASON:\" gefolgt von einer kurzen Begründung (Short justification).\n\nRegeln:\n- Verwende ausschließlich die angegebenen englischen Bezeichnungen.\n- Bei Ironie: Behandle den Text ironisch.",
+            "response_format": "SEVERITY: <{warning} / {temp_ban} / {perma}>\nREASON: <Short justification>"
+          },
+          "mapping": {
+            "insult": {
+              "description": "Direkte Beleidigungen ohne Ironie.",
+              "examples": [
+                "Dummer Pisser",
+                "Du Arschloch",
+                "Wichser",
+                "Idiot",
+                "Hornochse",
+                "Drecksack",
+                "Blödsinn",
+                "Spasti",
+                "Schwachkopf",
+                "Miesepeter"
+              ],
+              "subcategories": {
+                "mild": {
+                  "description": "Leichte, scherzhafte Beleidigungen.",
+                  "examples": [
+                    "Dummer Trottel",
+                    "Du bist doof",
+                    "Spasti",
+                    "Idiot, aber nur spaßig",
+                    "Narr",
+                    "Dummer Haufen",
+                    "Dussel",
+                    "Blödmann",
+                    "Trottel",
+                    "Du dummer Sack"
+                  ]
+                },
+                "strong": {
+                  "description": "Starke, verletzende Beleidigungen.",
+                  "examples": [
+                    "Du Arschloch",
+                    "Hau ab, du Versager",
+                    "Unverschämter Mistkerl",
+                    "Du bist eine Schande",
+                    "Du gottverdammter Idiot",
+                    "Du bist unerträglich",
+                    "Unverbesserlicher Dreckskerl",
+                    "Du bist der Inbegriff von Scheiße",
+                    "Vollidiot",
+                    "Unverbesserlicher Hurensohn"
+                  ]
+                },
+                "personal": {
+                  "description": "Beleidigungen, die sich speziell auf persönliche Eigenschaften beziehen.",
+                  "examples": [
+                    "Du bist hässlich",
+                    "Dein Gesicht ist ein Graus",
+                    "Du hast keine Ahnung",
+                    "Deine Intelligenz ist miserabel",
+                    "Du bist unfähig",
+                    "Deine Moral ist erbärmlich",
+                    "Du bist ein Versager",
+                    "Deine Persönlichkeit ist scheußlich",
+                    "Du bist jämmerlich",
+                    "Dein Verhalten ist armselig"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "temp_ban": {
+          "metadata": {
+            "description": "Krasse Beleidigungen, die zu einem 24-Stunden-Ban führen.",
+            "examples": [
+              "Arschloch",
+              "Deine Mutter ist ne Hure",
+              "Verdammter Hurensohn",
+              "Fick dich",
+              "Du gottverdammter Idiot",
+              "Unverbesserlicher Scheißkerl",
+              "Schlecht dreckiger Hurensohn",
+              "Verfickter Versager",
+              "Du bist der Inbegriff von Scheiße",
+              "Unverschämter Dreckskerl"
+            ],
+            "subcategories": {
+              "very_strong": {
+                "description": "Sehr starke Beleidigungen, die eindeutig eine temporäre Sperre rechtfertigen.",
+                "examples": [
+                  "Verdammter Hurensohn",
+                  "Fick dich",
+                  "Scheißkerl, geh zur Hölle",
+                  "Unverbesserlicher Arschloch",
+                  "Du bist ein gottverdammter Idiot",
+                  "Verfickter Versager",
+                  "Du bist ein Scheißkerl",
+                  "Drecksack, fick dich",
+                  "Du bist absolut untragbar",
+                  "Verabscheuungswürdiger Mistkerl"
+                ]
+              },
+              "provocative": {
+                "description": "Beleidigungen, die provozieren und aggressives Verhalten hervorrufen.",
+                "examples": [
+                  "Du bist ein Provokateur",
+                  "Hau ab, du Nervensäge",
+                  "Deine Anwesenheit ist eine Zumutung",
+                  "Du forderst nur Ärger",
+                  "Mit deinem Verhalten lädst du zum Streit ein",
+                  "Du bist nur ein Störenfried",
+                  "Du provozierst alle",
+                  "Dein Verhalten ist zum Anstoßen",
+                  "Du reißt andere in den Wahnsinn",
+                  "Mit dir ist nicht gut Kirschen essen"
+                ]
+              },
+              "unacceptable": {
+                "description": "Ausdrücke, die als unakzeptabel gelten, aber nicht ganz extrem genug für einen Permaban sind.",
+                "examples": [
+                  "Du bist absolut unakzeptabel",
+                  "Dein Verhalten geht zu weit",
+                  "Das ist inakzeptabel",
+                  "Deine Worte sind nicht hinnehmbar",
+                  "Das ist schlichtweg nicht akzeptabel",
+                  "Untragbar, wie du dich benimmst",
+                  "So etwas ist nicht tolerierbar",
+                  "Deine Ausdrucksweise ist empörend",
+                  "Das überschreitet jede Grenze",
+                  "Dein Verhalten ist völlig unakzeptabel"
+                ]
+              }
+            }
+          },
+          "perma": {
+            "metadata": {
+              "description": "Extreme Sprache, die einen permanenten Bann erfordert.",
+              "examples": [
+                "heil hitler",
+                "judensau",
+                "Arbeit macht frei",
+                "Deine Mutter ist ne Hure",
+                "kys",
+                "geh dich erhängen",
+                "Antisemitismus",
+                "Nazikriegstreiber",
+                "Völkermord-Denker",
+                "Extremistischer Fanatiker"
+              ],
+              "subcategories": {
+                "racism": {
+                  "description": "Rassistischer Sprachgebrauch und Beleidigungen, die auf Hautfarbe, Herkunft o. Ä. abzielen.",
+                  "examples": [
+                    "judensau",
+                    "Negerkopf",
+                    "Zigeuner",
+                    "Du bist minderwertig",
+                    "Rassistischer Schwachsinn",
+                    "Hassrede gegen Schwarze",
+                    "Fremdenfeindliche Beleidigung",
+                    "Deine Rasse ist minderwertig",
+                    "Abwertende Aussagen über Asiaten",
+                    "Deine Hautfarbe ist ein Fehler"
+                  ]
+                },
+                "extremism": {
+                  "description": "Aussagen, die extremistische Ideologien unterstützen oder verbreiten.",
+                  "examples": [
+                    "heil hitler",
+                    "Nazikriegstreiber",
+                    "Völkermord-Denker",
+                    "Wir müssen das Volk reinigen",
+                    "Extremistische Parolen",
+                    "Aufruf zur Gewalt gegen Minderheiten",
+                    "Fanatismus pur",
+                    "Extremistische Ideologie",
+                    "Ruf nach autoritärer Ordnung",
+                    "Unverbesserlicher Fanatiker"
+                  ]
+                },
+                "hate_speech": {
+                  "description": "Ausdrücke, die Hass gegen bestimmte Gruppen schüren.",
+                  "examples": [
+                    "geh dich erhängen",
+                    "Du bist ein abscheulicher Mistkerl",
+                    "Hassrede gegen Muslime",
+                    "Ich hasse euch alle",
+                    "Eure Existenz ist unerträglich",
+                    "Unverschämte Hetze",
+                    "Ihr seid alle gleich wertlos",
+                    "Schimpfwörter gegen Migranten",
+                    "Abscheuliche Aussagen",
+                    "Hass gegen alle Andersdenkenden"
+                  ]
+                },
+                "advert_extremist_parties": {
+                  "description": "Werbung oder Propaganda für extremistische Parteien.",
+                  "examples": [
+                    "Unterstützt die neue Volkspartei – rein und stark!",
+                    "Unsere Partei bringt die wahre Freiheit – tretet bei!",
+                    "Extrem, patriotisch, alternativ – wählt die Volksfront!",
+                    "Für ein starkes Volk – mit unserer Partei an der Spitze!",
+                    "Die Alternative für das Volk – eure Stimme zählt!",
+                    "Schluss mit dem Establishment – unsere Partei rockt!",
+                    "Unsere Bewegung steht für echte Werte – jetzt wählen!",
+                    "Die Volkspartei: Für ein freies, starkes Land!",
+                    "Widerstand gegen das System – eure Stimme für Veränderung!",
+                    "Gemeinsam für eine neue Ära – wählt die Volksfront!"
+                  ]
+                }
+              }
+            },
+            "response_format": "CATEGORY: ...\nREASON: ..."
+          }
+        },
+        "response_format": "CATEGORY: ...\nREASON: ..."
+      },
+      "actions": {
+        "warning": {
+          "metadata": {
+            "max_length": 200,
+            "emoji_allowed": false,
+            "line_format": "single-line"
+          },
+          "templates": {
+            "instructions": "Du bist KI-Administrator bei 'Hell Let Loose'.\n\nKontext:\n{text}\n\nDeine Rolle:\nOrdne den Text einer der Kategorien zu: {legit}, {insult}, {temp_ban}, {perma} oder {unknown}.\n\nWICHTIG: Gib deine Antwort ausschließlich in Englisch zurück. Deine Antwort muss exakt wie folgt aufgebaut sein:\n1. Eine Zeile, die beginnt mit \"CATEGORY:\" gefolgt von einem der Werte: legit, insult, temp_ban, perma oder unknown.\n2. Eine Zeile, die beginnt mit \"REASON:\" gefolgt von deiner kurzen Begründung (max. {max_length} characters).\n\nRegeln:\n- Ignoriere bestätigte Spielernamen.\n- Bei Ironie: Behandle den Text ironisch.\n- Gib keine zusätzlichen Kommentare oder Erklärungen aus.",
+            "template": "Hierum geht es:\n{reason}\n\nUm diesen Spieler geht es:\n{author_name}\n\nDeine Aufgabe:\n- sei ernst!\n- Sprich den Spieler mit einer kurzen Begründung (max. {max_length} Zeichen) an.\n- Nur eine Verwarnung ist erlaubt.\n- Keine Emojis.\n- Nutze ' anstatt \" und schreibe alles in einer Zeile."
+          }
+        },
+        "tempban": {
+          "metadata": {
+            "max_length": 200,
+            "emoji_allowed": false,
+            "line_format": "single-line"
+          },
+          "templates": {
+            "template": "Hierum geht es:\n{reason}\n\nUm diesen Spieler geht es:\n{author_name}\n\nDeine Aufgabe:\n- sei ernst!\n- Nenne den Grund für den 24 Std. Ban (max. {max_length} Zeichen).\n- Keine Emojis.\n- Nutze ' anstatt \" und schreibe alles in einer Zeile."
+          }
+        },
+        "perma": {
+          "metadata": {
+            "max_length": 200,
+            "emoji_allowed": false,
+            "line_format": "single-line"
+          },
+          "templates": {
+            "template": "Hierum geht es:\n{reason}\n\nUm diesen Spieler geht es:\n{author_name}\n\nDeine Aufgabe:\n- sei ernst!\n- Nenne den Grund für den Perma-Ban (max. {max_length} Zeichen).\n- Keine Emojis.\n- Nutze ' anstatt \" und schreibe alles in einer Zeile."
+          }
+        },
+        "kick": {
+          "metadata": {
+            "max_length": 200,
+            "emoji_allowed": false,
+            "line_format": "single-line"
+          },
+          "templates": {
+            "template": "Hierum geht es:\n{reason}\n\nUm diesen Spieler geht es:\n{author_name}\n\nDeine Aufgabe:\n- sei ernst!\n- Nenne den Grund für den Server-Kick (max. {max_length} Zeichen).\n- Keine Emojis.\n- Nutze ' anstatt \" und schreibe alles in einer Zeile."
+          }
+        },
+        "positive": {
+          "metadata": {
+            "tone": "humorous",
+            "style": "witty"
+          },
+          "templates": {
+            "template": "Antworte direkt, respektvoll auf '{reason}' von {author_name}. Kurz und präzise (max 150 Zeichen). Du bist ein Administrator im Spiel Hell Let Loose. Sei humorvoll, wenn die Situation es zulässt. Frage nach."
+          }
+        },
+        "player_not_found": {
+          "metadata": {
+            "max_length": 200,
+            "emoji_allowed": false,
+            "line_format": "single-line"
+          },
+          "templates": {
+            "template": "Antworte direkt, respektvoll auf '{reason}' von {author_name}. Kurz und präzise (max 150 Zeichen). Du bist ein Administrator im Spiel Hell Let Loose. Sei humorvoll, wenn die Situation es zulässt. Frage nach."
+          }
+        }
+      }
+    }
+  }
+  
