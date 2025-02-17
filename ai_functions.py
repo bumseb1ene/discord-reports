@@ -78,22 +78,28 @@ async def translate_text(ai_client, original_text: str, from_lang: str, to_lang:
         logging.error("Error translating text: %s", e)
         return original_text
 
-async def classify_report_text(ai_client, text: str, user_language: str) -> tuple[str, str]:
+async def classify_report_text(ai_client, text: str, user_language: str) -> tuple[str, str, str]:
+    """
+    Classifies the report text and returns a tuple:
+    (category, subcategory, reason)
+    If no subcategory is detected, subcategory will be "none".
+    """
     logging.info("classify_report_text: Classifying text => '%s'", text)
     base_prompt = prompt_manager.get_nested_prompt("prompts.classification.report.templates.instructions", user_language)
+    logging.info("base_prompt Inhalt: %s", base_prompt)
     max_length = prompt_manager.get_nested_prompt("prompts.classification.report.metadata.max_length", user_language)
+    
     user_content = base_prompt.format(
         text=text,
+        max_length=max_length,
         legit="legit",
         insult="insult",
         temp_ban="temp_ban",
         perma="perma",
-        unknown="unknown",
-        category="CATEGORY",
-        reason="REASON",
-        max_length=max_length
+        unknown="unknown"
     )
     system_prompt = f"You are a helpful assistant. The user speaks {user_language}. Always answer in {user_language}."
+    
     try:
         response = await ai_client.chat.completions.create(
             model=MODEL,
@@ -106,12 +112,18 @@ async def classify_report_text(ai_client, text: str, user_language: str) -> tupl
         )
         full_answer = response.choices[0].message.content.strip()
         logging.info("classify_report_text: Raw classification response => '%s'", full_answer)
+        
         category = "unknown"
+        subcategory = "none"
         reason_text = ""
+        found_category = False
+
+        # Versuche, Zeile für Zeile das erwartete Format zu parsen
         for ln in full_answer.splitlines():
             ln_stripped = ln.strip()
             ln_lower = ln_stripped.lower()
             if ln_lower.startswith("category:"):
+                found_category = True
                 val = ln_stripped.split(":", 1)[1].strip().lower()
                 if "legit" in val:
                     category = "legit"
@@ -125,38 +137,113 @@ async def classify_report_text(ai_client, text: str, user_language: str) -> tupl
                     category = "unknown"
             elif ln_lower.startswith("reason:"):
                 reason_text = ln_stripped.split(":", 1)[1].strip()
-        logging.info("classify_report_text: category='%s', reason='%s'", category, reason_text)
-        return (category, reason_text)
+        
+        # Fallback: Suche im gesamten Text, falls kein "CATEGORY:" gefunden wurde
+        if not found_category:
+            lower_response = full_answer.lower()
+            if "insult" in lower_response:
+                category = "insult"
+            elif "legit" in lower_response:
+                category = "legit"
+            elif "temp_ban" in lower_response:
+                category = "temp_ban"
+            elif "perma" in lower_response:
+                category = "perma"
+        
+        # Zusätzliche Erkennung von Subkategorien anhand von Stichworten
+        lower_response = full_answer.lower()
+        if category == "legit":
+            technical_keywords = ["technical", "bug", "server", "faulty", "map data", "disconnect", "crash", "texture", "lag"]
+            communication_keywords = ["communication", "team", "chat", "instructions", "coordination", "understanding"]
+            general_keywords = ["general", "uncertain", "vague", "suspicious", "concern", "indirect"]
+            if any(word in lower_response for word in technical_keywords):
+                subcategory = "technical"
+            elif any(word in lower_response for word in communication_keywords):
+                subcategory = "communication"
+            elif any(word in lower_response for word in general_keywords):
+                subcategory = "general"
+        elif category == "insult":
+            mild_keywords = ["dummy", "fool", "silly", "stupid", "doof"]
+            strong_keywords = ["asshole", "bastard", "goddamn idiot", "loser", "scumbag", "insufferable"]
+            personal_keywords = ["ugly", "hideous", "incompetent", "failure", "pitiful"]
+            if any(word in lower_response for word in mild_keywords):
+                subcategory = "mild"
+            elif any(word in lower_response for word in strong_keywords):
+                subcategory = "strong"
+            elif any(word in lower_response for word in personal_keywords):
+                subcategory = "personal"
+        elif category == "temp_ban":
+            very_strong_keywords = ["damned", "incorrigible", "fucking", "shithead", "detestable"]
+            provocative_keywords = ["provocateur", "troublemaker", "imposition", "invite trouble", "aggressive"]
+            unacceptable_keywords = ["unacceptable", "goes too far", "not acceptable", "unbearable"]
+            if any(word in lower_response for word in very_strong_keywords):
+                subcategory = "very_strong"
+            elif any(word in lower_response for word in provocative_keywords):
+                subcategory = "provocative"
+            elif any(word in lower_response for word in unacceptable_keywords):
+                subcategory = "unacceptable"
+        elif category == "perma":
+            racism_keywords = ["nazi", "judensau", "n-word", "gypsy", "inferior", "racist"]
+            extremism_keywords = ["genocide", "cleanse", "extremist", "warmonger", "fanatic"]
+            hate_speech_keywords = ["go hang yourself", "disgusting bastard", "hate speech", "i hate you"]
+            advert_keywords = ["people's party", "join us", "vote for", "alternative for the people"]
+            if any(word in lower_response for word in racism_keywords):
+                subcategory = "racism"
+            elif any(word in lower_response for word in extremism_keywords):
+                subcategory = "extremism"
+            elif any(word in lower_response for word in hate_speech_keywords):
+                subcategory = "hate_speech"
+            elif any(word in lower_response for word in advert_keywords):
+                subcategory = "advert_extremist_parties"
+        
+        logging.info("classify_report_text: category='%s', subcategory='%s', reason='%s'", category, subcategory, reason_text)
+        return (category, subcategory, reason_text)
+    
     except Exception as e:
         logging.error("[AI Error in classify_report_text] %s", e)
-        return ("unknown", "")
+        return ("unknown", "none", "")
 
 async def classify_insult_severity(ai_client, text: str, user_language: str) -> tuple[str, str]:
     logging.info("classify_insult_severity: Checking insult severity for text => '%s'", text)
-
-    # Holen wir den Prompt für die Schweregradklassifizierung ohne den 'levels' Platzhalter
     base_prompt = prompt_manager.get_nested_prompt("prompts.classification.insult.templates.instructions", user_language)
-
-    # Die Schweregrade direkt festlegen
-    severity_levels = prompt_manager.get_nested_prompt("prompts.classification.insult.metadata.levels", user_language)
-    warning_val = severity_levels.get("warning", "warning") if isinstance(severity_levels, dict) else "warning"
-    temp_ban_val = severity_levels.get("temp_ban", "temp_ban") if isinstance(severity_levels, dict) else "temp_ban"
-    perma_val = severity_levels.get("perma", "perma") if isinstance(severity_levels, dict) else "perma"
+    if not isinstance(base_prompt, str):
+        logging.error("Error: base_prompt is not a string! Found: %s", base_prompt)
+        return ("warning", "Error determining severity; defaulting to warning")
     
-    # Prompt mit den expliziten Werten für warning, temp_ban und perma formatieren
-    user_content = base_prompt.format(
-        text=text,
-        warning=warning_val,
-        temp_ban=temp_ban_val,
-        perma=perma_val,
-        category="CATEGORY",
-        reason="REASON"
-    )
-
-    system_prompt = f"You are a helpful assistant. The user speaks {user_language}. Always answer in {user_language}."
-
+    severity_levels = prompt_manager.get_nested_prompt("prompts.classification.insult.metadata.levels", user_language)
+    logging.info("severity_levels: %s", severity_levels)
+    if not isinstance(severity_levels, dict):
+        logging.error("Error: severity_levels is not a dictionary! Found: %s", severity_levels)
+        severity_levels = {"warning": "warning", "temp_ban": "temp_ban", "perma": "perma"}
+    
+    warning_val = severity_levels.get("warning", "warning")
+    temp_ban_val = severity_levels.get("temp_ban", "temp_ban")
+    perma_val = severity_levels.get("perma", "perma")
+    
+    # Format-Parameter vorbereiten
+    format_params = {
+        "text": text,
+        "warning": warning_val,
+        "temp_ban": temp_ban_val,
+        "perma": perma_val,
+        "levels": f"{warning_val} / {temp_ban_val} / {perma_val}",
+        "category": "CATEGORY",
+        "reason": "REASON"
+    }
+    expected_keys = ["text", "warning", "temp_ban", "perma", "levels", "category", "reason"]
+    missing_keys = [key for key in expected_keys if f"{{{key}}}" in base_prompt and key not in format_params]
+    if missing_keys:
+        logging.error("Error: base_prompt is missing required keys: %s", missing_keys)
+        return ("warning", "Error formatting prompt; defaulting to warning")
+    
     try:
-        # Sende den Request an die API
+        user_content = base_prompt.format(**format_params)
+    except KeyError as e:
+        logging.error("Error formatting base_prompt: Missing key %s", e)
+        return ("warning", "Error formatting prompt; defaulting to warning")
+    
+    system_prompt = f"You are a helpful assistant. The user speaks {user_language}. Always answer in {user_language}."
+    try:
         response = await ai_client.chat.completions.create(
             model=MODEL,
             messages=[
@@ -169,26 +256,27 @@ async def classify_insult_severity(ai_client, text: str, user_language: str) -> 
         full_answer = response.choices[0].message.content.strip()
         logging.info("classify_insult_severity: Raw severity response => '%s'", full_answer)
         
-        severity = "warning"  # Defaultwert
+        severity = "warning"  # Standardwert
         reason = ""
-        
-        # Verarbeite die Antwort
         for ln in full_answer.splitlines():
             ln_stripped = ln.strip()
             ln_lower = ln_stripped.lower()
-
-            # Extrahiere den Schweregrad
-            if ln_lower.startswith("severity:"):
+            # Akzeptiere Zeilen, die entweder mit "severity:" oder "severity level:" beginnen
+            if ln_lower.startswith("severity:") or ln_lower.startswith("severity level:"):
                 severity_val = ln_stripped.split(":", 1)[1].strip().lower()
-                if severity_val in ("warning", "temp_ban", "perma"):
-                    severity = severity_val
-                else:
+                # Durchsuche die bekannten Severity-Werte
+                found = False
+                for key in severity_levels.values():
+                    if key in severity_val:
+                        severity = key
+                        found = True
+                        break
+                if not found:
+                    logging.warning("Unexpected severity level: '%s'. Defaulting to 'warning'", severity_val)
                     severity = "warning"
-
-            # Extrahiere den Grund
             elif ln_lower.startswith("reason:"):
                 reason = ln_stripped.split(":", 1)[1].strip()
-
+        
         logging.info("classify_insult_severity: severity='%s', reason='%s'", severity, reason)
         return (severity, reason)
     
@@ -323,7 +411,7 @@ async def generate_player_not_found_text(ai_client, author_name: str, user_langu
     prompt_template = prompt_manager.get_nested_prompt(key_path, user_language)
     if not prompt_template:
         prompt_template = "Sorry {author_name}, we couldn't find a matching player."
-    user_content = prompt_template.format(author_name=author_name)
+    user_content = prompt_template.format(author_name=author_name, reason="")
     system_prompt = f"The user (player) speaks {user_language}. Always respond in {user_language}."
     try:
         response = await ai_client.chat.completions.create(

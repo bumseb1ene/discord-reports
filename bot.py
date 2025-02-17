@@ -42,9 +42,18 @@ from ai_functions import (
 
 logging.basicConfig(
     filename='bot_log.txt',
-    level=logging.INFO,
-    format='%(asctime)s:%(levelname)s:%(message)s'
+    level=logging.INFO,  # Setzt das niedrigste gewünschte Level (DEBUG loggt alles darunter)
+    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
+
+# Optional: Log auch in die Konsole ausgeben
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)  # Setzt die Konsole auf das gleiche Level
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+console.setFormatter(formatter)
+logging.getLogger().addHandler(console)
+
 
 load_dotenv()
 
@@ -237,7 +246,7 @@ class MyBot(commands.Bot):
         )
 
         # --- KI: Klassifizierung in (legit, insult, temp_ban, perma, unknown) ---
-        category, justification_playerlang = await classify_report_text(self.ai_client, text_to_classify, detected_lang)
+        category, subcategory, justification_playerlang = await classify_report_text(self.ai_client, text_to_classify, detected_lang)
         logging.info("on_message: AI classification result: category=%s, reason=%s", category, justification_playerlang)
         justification_embedlang = await translate_text(self.ai_client, justification_playerlang, detected_lang, self.user_lang)
 
