@@ -141,16 +141,16 @@ class MyBot(commands.Bot):
 
     def get_effective_text(self, message: discord.Message) -> str:
         """
-        Falls das Embed eine Description mit !admin enthält -> verwende das, sonst message.content.
+        Falls das Embed eine Description enthält -> verwende das,
+        sonst message.content.
         """
         if message.embeds and len(message.embeds) > 0:
             embed = message.embeds[0]
             if embed.description:
                 desc_clean = remove_markdown(embed.description)
-                # Falls description mit "!admin" beginnt, bevorzugen wir sie
-                if desc_clean.lower().startswith("!admin"):
-                    return desc_clean
+                return desc_clean  # <-- Immer das Embed verwenden, wenn vorhanden
         return message.content
+
 
     async def on_message(self, message: discord.Message):
         """

@@ -22,7 +22,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "Achtung {author_name}, dies ist eine Verwarnung. Grund: {reason}"
+          "template": "Antworte dem {author_name} ernst, dies ist eine Verwarnung. Grund: {reason}. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 150 Zeichen)"
         }
       },
       "tempban": {
@@ -30,7 +30,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "Du erhältst einen 24h-Bann, {author_name}. Grund: {reason}"
+          "template": "Du erhältst einen 24h-Bann, {author_name}. Grund: {reason}. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 150 Zeichen)."
         }
       },
       "perma": {
@@ -38,7 +38,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "Du wirst permanent gebannt, {author_name}. Grund: {reason}"
+          "template": "Du wirst permanent gebannt, {author_name}. Grund: {reason}. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 150 Zeichen)"
         }
       },
       "kick": {
@@ -46,7 +46,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "Du wirst vom Server gekickt, {author_name}. Grund: {reason}"
+          "template": "Du wirst vom Server gekickt, {author_name}. Grund: {reason}. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 150 Zeichen)"
         }
       },
       "positive": {
