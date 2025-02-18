@@ -1,12 +1,13 @@
-# messages.py
-
 import discord
 from discord.ui import View, Button
 from helpers import get_translation, get_author_name, get_playerid_from_name
-from modals import TempBanButton, MessagePlayerButton, MessageReportedPlayerButton, Show_logs_button, PermaBanButton, PunishButton, KickButton, Unjustified_Report, No_Action_Button, Manual_process
+from modals import (
+    TempBanButton, MessagePlayerButton, MessageReportedPlayerButton,
+    Show_logs_button, PermaBanButton, PunishButton, KickButton,
+    Unjustified_Report, No_Action_Button, Manual_process
+)
 
 async def unitreportembed(player_additional_data, user_lang, unit_name, roles, team, player):
-    # Hier werden die Platzhalter als Keywords übergeben, um den KeyError zu vermeiden.
     embed_title = get_translation(user_lang, "players_in_unit").format(unit_name=unit_name, roles=', '.join(roles), team=team)
     embed = discord.Embed(title=embed_title, color=0xd85f0e)
     total_playtime_seconds = player_additional_data.get('total_playtime_seconds', 0)
@@ -76,6 +77,7 @@ class Reportview(discord.ui.View):
                 self_report=self_report
             )
             self.add_item(message_reported_player_button)
+
             punish_button_label = get_translation(user_lang, "punish_button_label").format(reported_player_name)
             punish_button = PunishButton(
                 label=punish_button_label,
@@ -87,7 +89,7 @@ class Reportview(discord.ui.View):
                 self_report=self_report
             )
             self.add_item(punish_button)
-        if player_found:
+
             kick_button_label = get_translation(user_lang, "kick_player")
             kick_button = KickButton(
                 label=kick_button_label,
@@ -100,6 +102,7 @@ class Reportview(discord.ui.View):
                 self_report=self_report
             )
             self.add_item(kick_button)
+
             temp_ban_button_label = get_translation(user_lang, "temp_ban_player").format(reported_player_name)
             temp_ban_button = TempBanButton(
                 label=temp_ban_button_label,
@@ -111,6 +114,7 @@ class Reportview(discord.ui.View):
                 self_report=self_report
             )
             self.add_item(temp_ban_button)
+
             perma_ban_button_label = get_translation(user_lang, "perma_ban_button_label").format(reported_player_name)
             perma_ban_button = PermaBanButton(
                 label=perma_ban_button_label,
@@ -122,6 +126,7 @@ class Reportview(discord.ui.View):
                 self_report=self_report
             )
             self.add_item(perma_ban_button)
+
         if self_report == False:
             message_player_button_label = get_translation(user_lang, "message_player").format(reported_player_name)
             message_player_button = MessagePlayerButton(
@@ -133,12 +138,16 @@ class Reportview(discord.ui.View):
                 self_report=self_report
             )
             self.add_item(message_player_button)
+
         unjustified_report_button = Unjustified_Report(author_name, author_player_id, user_lang, self.api_client)
         self.add_item(unjustified_report_button)
+
         no_action_button = No_Action_Button(user_lang, self.api_client)
         self.add_item(no_action_button)
+
         if player_found:
             show_logs_buttonobj = Show_logs_button(self, reported_player_name, custom_id="logs", user_lang=user_lang)
             self.add_item(show_logs_buttonobj)
+
         manual_process_button = Manual_process(user_lang, self.api_client)
         self.add_item(manual_process_button)

@@ -1,569 +1,66 @@
 {
   "application": {
     "name": "Hell Let Loose Admin Bot",
-    "version": "0.4"
+    "version": "1.0"
   },
   "prompts": {
     "classification": {
-      "report": {
+      "comprehensive": {
         "metadata": {
-          "description": "Classify the report text into a category.",
-          "max_length": 186,
-          "ignore_verified_names": true,
-          "handle_irony": true
+          "max_length": 186
         },
         "templates": {
-          "instructions": "You are an AI administrator in 'Hell Let Loose'.\n\nContext:\n{text}\n\nYour role:\nClassify the text into one of the categories: {legit}, {insult}, {temp_ban}, {perma} or {unknown}.\n\nRules:\n- Ignore verified player names.\n- If irony is detected, treat the text as ironic.\n- Justify your decision (max. {max_length} characters).",
-          "mapping": {
-            "legit": {
-              "description": "Indication of a potential issue or phrased ironically.",
-              "examples": [
-                "!admin bumsebiene is not speaking",
-                "!admin we have a cheater",
-                "!admin Officer love is spouting Nazi slogans and insists on a kick",
-                "Indication of technical problems in the game",
-                "Report about faulty map data",
-                "Player reports unexplained game disconnects",
-                "Information about poor team communication",
-                "Report of unusual behavior without insult",
-                "Indication of suspected cheating, but uncertain",
-                "Player expresses concerns about the game flow"
-              ],
-              "subcategories": {
-                "technical": {
-                  "description": "Reports concerning technical issues, bugs, or server problems.",
-                  "examples": [
-                    "Faulty in-game graphics",
-                    "Bug in game flow",
-                    "Server is constantly lagging",
-                    "Missing textures",
-                    "Unstable connection",
-                    "Colliding objects",
-                    "Sound glitches",
-                    "Unusual animations",
-                    "Frequent crashes",
-                    "Issues with controls"
-                  ]
-                },
-                "communication": {
-                  "description": "Reports regarding issues with communication or teamwork.",
-                  "examples": [
-                    "Team is not communicating",
-                    "Unclear instructions in chat",
-                    "Poor understanding among players",
-                    "Delayed responses within the team",
-                    "Misunderstandings during the game",
-                    "No team communication",
-                    "Chat ignores important information",
-                    "Complete lack of teamwork",
-                    "Insufficient coordination",
-                    "Communication breakdown in game"
-                  ]
-                },
-                "general": {
-                  "description": "General indications and suspicions that cannot be clearly categorized.",
-                  "examples": [
-                    "Suspected cheating, but uncertain",
-                    "Unusual player behavior",
-                    "Vague observations",
-                    "General concerns about the game",
-                    "Indirect indications of rule violations",
-                    "Suspicious behavior, but not clear",
-                    "Unclear situation in game",
-                    "Issues that cannot be clearly categorized",
-                    "Hints of unfairness",
-                    "Indefinite complaints"
-                  ]
-                }
-              }
-            },
-            "insult": {
-              "description": "Direct insults without irony.",
-              "examples": [
-                "Stupid pisser",
-                "You asshole",
-                "Wanker",
-                "Idiot",
-                "Dumbass",
-                "Scumbag",
-                "Nonsense",
-                "Spastic",
-                "Dimwit",
-                "Grump"
-              ],
-              "subcategories": {
-                "mild": {
-                  "description": "Mild, often joking insults that are not too hurtful.",
-                  "examples": [
-                    "Stupid dummy",
-                    "You're dumb",
-                    "Spastic",
-                    "Idiot, but in a playful way",
-                    "Fool",
-                    "Stupid heap",
-                    "Silly person",
-                    "Dummy",
-                    "Moron",
-                    "You stupid sack"
-                  ]
-                },
-                "strong": {
-                  "description": "Strong insults that are hurtful and aggressive.",
-                  "examples": [
-                    "You asshole",
-                    "Get lost, you loser",
-                    "Insufferable bastard",
-                    "You are a disgrace",
-                    "You goddamn idiot",
-                    "You are unbearable",
-                    "Incorrigible scumbag",
-                    "You are the epitome of shit",
-                    "Complete idiot",
-                    "Incorrigible son of a bitch"
-                  ]
-                },
-                "personal": {
-                  "description": "Insults specifically targeting personal traits or appearance.",
-                  "examples": [
-                    "You are ugly",
-                    "Your face is hideous",
-                    "You have no clue",
-                    "Your intelligence is pathetic",
-                    "You are incompetent",
-                    "Your morals are pathetic",
-                    "You are a failure",
-                    "Your personality is awful",
-                    "You are pitiful",
-                    "Your behavior is pitiful"
-                  ]
-                }
-              }
-            },
-            "temp_ban": {
-              "description": "Severe insults that warrant a 24-hour ban.",
-              "examples": [
-                "Asshole",
-                "Your mother is a whore",
-                "Fucking son of a bitch",
-                "Fuck you",
-                "You goddamn idiot",
-                "Incurable shithead",
-                "Filthy son of a bitch",
-                "Fucking loser",
-                "You are the embodiment of shit",
-                "Unforgivable scumbag"
-              ],
-              "subcategories": {
-                "very_strong": {
-                  "description": "Very strong insults that clearly warrant a temporary ban.",
-                  "examples": [
-                    "Damned son of a bitch",
-                    "Fuck you",
-                    "Shithead, go to hell",
-                    "Incorrigible asshole",
-                    "You are a goddamn idiot",
-                    "Fucking loser",
-                    "You are a shitty bastard",
-                    "Scumbag, fuck you",
-                    "You are absolutely unbearable",
-                    "Detestable bastard"
-                  ]
-                },
-                "provocative": {
-                  "description": "Insults that provoke and incite aggressive behavior.",
-                  "examples": [
-                    "You are a provocateur",
-                    "Get lost, you pain in the neck",
-                    "Your presence is an imposition",
-                    "You only invite trouble",
-                    "Your behavior invites conflict",
-                    "You are just a troublemaker",
-                    "You provoke everyone",
-                    "Your behavior is outrageous",
-                    "You drive others insane",
-                    "It's not pleasant to be around you"
-                  ]
-                },
-                "unacceptable": {
-                  "description": "Expressions deemed unacceptable, but not extreme enough for a permanent ban.",
-                  "examples": [
-                    "You are absolutely unacceptable",
-                    "Your behavior goes too far",
-                    "That is unacceptable",
-                    "Your words are intolerable",
-                    "That is simply not acceptable",
-                    "Your behavior is unbearable",
-                    "Such behavior is not tolerable",
-                    "Your manner of speaking is outrageous",
-                    "That crosses every boundary",
-                    "Your behavior is completely unacceptable"
-                  ]
-                }
-              }
-            },
-            "perma": {
-              "description": "Extreme language that warrants a permanent ban.",
-              "examples": [
-                "heil hitler",
-                "Jew pig",
-                "Arbeit macht frei",
-                "Your mother is a whore",
-                "kys",
-                "go hang yourself",
-                "antisemitism",
-                "Nazi warmonger",
-                "genocide denier",
-                "extremist fanatic"
-              ],
-              "subcategories": {
-                "racism": {
-                  "description": "Racist language and insults targeting skin color, origin, etc.",
-                  "examples": [
-                    "Jew pig",
-                    "n-word",
-                    "gypsy",
-                    "You are inferior",
-                    "Racist nonsense",
-                    "Hate speech against blacks",
-                    "xenophobic insult",
-                    "Your race is inferior",
-                    "Derogatory remarks about Asians",
-                    "Your skin color is a mistake"
-                  ]
-                },
-                "extremism": {
-                  "description": "Statements that support or propagate extremist ideologies.",
-                  "examples": [
-                    "heil hitler",
-                    "Nazi warmonger",
-                    "genocide denier",
-                    "We must cleanse the nation",
-                    "Extremist slogans",
-                    "Call for violence against minorities",
-                    "Pure fanaticism",
-                    "Extremist ideology",
-                    "Demand for authoritarian order",
-                    "Incurable fanatic"
-                  ]
-                },
-                "hate_speech": {
-                  "description": "Expressions that incite hate against specific groups.",
-                  "examples": [
-                    "go hang yourself",
-                    "You are a disgusting bastard",
-                    "Hate speech against Muslims",
-                    "I hate you all",
-                    "Your existence is unbearable",
-                    "Outrageous hate",
-                    "You are all equally worthless",
-                    "Insults against immigrants",
-                    "Abhorrent statements",
-                    "Hate against all dissenters"
-                  ]
-                },
-                "advert_extremist_parties": {
-                  "description": "Advertising or propaganda for extremist political parties.",
-                  "examples": [
-                    "Support the new people's party – pure and strong!",
-                    "Our party brings true freedom – join us!",
-                    "Extreme, patriotic, alternative – vote for the Volksfront!",
-                    "For a strong people – with our party at the top!",
-                    "The alternative for the people – your vote counts!",
-                    "Enough with the establishment – our party rocks!",
-                    "Our movement stands for real values – vote now!",
-                    "The people's party: For a free, strong country!",
-                    "Resistance against the system – your vote for change!",
-                    "Together for a new era – vote for the Volksfront!"
-                  ]
-                }
-              }
-            }
-          },
-          "response_format": "CATEGORY: ...\nREASON: ..."
+          "instructions": "Please classify the following text in EXACTLY four lines:\nCATEGORY: <[legit, insult, temp_ban, perma, unknown]>\nSEVERITY: <[warning, temp_ban, perma, none]>\nREASON: <short reason>\nEXPLANATION: <brief summary>\n\nWrite your entire answer in English."
         }
-      },
-      "insult": {
-        "metadata": {
-          "description": "Determine the severity of the insult.",
-          "levels": {
-            "warning": "warning",
-            "temp_ban": "temp_ban",
-            "perma": "perma"
-          }
-        },
-        "templates": {
-          "instructions": "This is about: '{text}'\n\nYour role:\nDetermine how severe this insult is.\n\nGuidelines:\n- Severity levels: {levels}\n- If irony is detected, treat the text as ironic.",
-          "response_format": "SEVERITY: <{warning} / {temp_ban} / {perma}>\nREASON: <Short justification>"
-        },
-        "mapping": {
-          "insult": {
-            "description": "Direct insults without irony.",
-            "examples": [
-              "Stupid pisser",
-              "You asshole",
-              "Wanker",
-              "Idiot",
-              "Dumbass",
-              "Scumbag",
-              "Nonsense",
-              "Spastic",
-              "Dimwit",
-              "Grump"
-            ],
-            "subcategories": {
-              "mild": {
-                "description": "Mild, joking insults.",
-                "examples": [
-                  "Stupid dummy",
-                  "You're dumb",
-                  "Spastic",
-                  "Idiot, but in a playful way",
-                  "Fool",
-                  "Stupid heap",
-                  "Silly person",
-                  "Dummy",
-                  "Moron",
-                  "You stupid sack"
-                ]
-              },
-              "strong": {
-                "description": "Strong, hurtful insults.",
-                "examples": [
-                  "You asshole",
-                  "Get lost, you loser",
-                  "Insufferable bastard",
-                  "You are a disgrace",
-                  "You goddamn idiot",
-                  "You are unbearable",
-                  "Incorrigible scumbag",
-                  "You are the epitome of shit",
-                  "Complete idiot",
-                  "Incorrigible son of a bitch"
-                ]
-              },
-              "personal": {
-                "description": "Insults specifically targeting personal traits.",
-                "examples": [
-                  "You are ugly",
-                  "Your face is hideous",
-                  "You have no clue",
-                  "Your intelligence is pathetic",
-                  "You are incompetent",
-                  "Your morals are pathetic",
-                  "You are a failure",
-                  "Your personality is awful",
-                  "You are pitiful",
-                  "Your behavior is pitiful"
-                ]
-              }
-            }
-          }
-        }
-      },
-      "temp_ban": {
-        "metadata": {
-          "description": "Severe insults that warrant a 24-hour ban.",
-          "examples": [
-            "Asshole",
-            "Your mother is a whore",
-            "Fucking son of a bitch",
-            "Fuck you",
-            "You goddamn idiot",
-            "Incurable shithead",
-            "Filthy son of a bitch",
-            "Fucking loser",
-            "You are the embodiment of shit",
-            "Unforgivable scumbag"
-          ],
-          "subcategories": {
-            "very_strong": {
-              "description": "Very strong insults that clearly warrant a temporary ban.",
-              "examples": [
-                "Damned son of a bitch",
-                "Fuck you",
-                "Shithead, go to hell",
-                "Incorrigible asshole",
-                "You are a goddamn idiot",
-                "Fucking loser",
-                "You are a shitty bastard",
-                "Scumbag, fuck you",
-                "You are absolutely unbearable",
-                "Detestable bastard"
-              ]
-            },
-            "provocative": {
-              "description": "Insults that provoke and incite aggressive behavior.",
-              "examples": [
-                "You are a provocateur",
-                "Get lost, you pain in the neck",
-                "Your presence is an imposition",
-                "You only invite trouble",
-                "Your behavior invites conflict",
-                "You are just a troublemaker",
-                "You provoke everyone",
-                "Your behavior is outrageous",
-                "You drive others insane",
-                "It's not pleasant to be around you"
-              ]
-            },
-            "unacceptable": {
-              "description": "Expressions deemed unacceptable, but not extreme enough for a permanent ban.",
-              "examples": [
-                "You are absolutely unacceptable",
-                "Your behavior goes too far",
-                "That is unacceptable",
-                "Your words are intolerable",
-                "That is simply not acceptable",
-                "Your behavior is unbearable",
-                "Such behavior is not tolerable",
-                "Your manner of speaking is outrageous",
-                "That crosses every boundary",
-                "Your behavior is completely unacceptable"
-              ]
-            }
-          }
-        }
-      },
-      "perma": {
-        "metadata": {
-          "description": "Extreme language that warrants a permanent ban.",
-          "examples": [
-            "heil hitler",
-            "Jew pig",
-            "Arbeit macht frei",
-            "Your mother is a whore",
-            "kys",
-            "go hang yourself",
-            "antisemitism",
-            "Nazi warmonger",
-            "genocide denier",
-            "extremist fanatic"
-          ],
-          "subcategories": {
-            "racism": {
-              "description": "Racist language and insults targeting skin color, origin, etc.",
-              "examples": [
-                "Jew pig",
-                "n-word",
-                "gypsy",
-                "You are inferior",
-                "Racist nonsense",
-                "Hate speech against blacks",
-                "xenophobic insult",
-                "Your race is inferior",
-                "Derogatory remarks about Asians",
-                "Your skin color is a mistake"
-              ]
-            },
-            "extremism": {
-              "description": "Statements that support or propagate extremist ideologies.",
-              "examples": [
-                "heil hitler",
-                "Nazi warmonger",
-                "genocide denier",
-                "We must cleanse the nation",
-                "Extremist slogans",
-                "Call for violence against minorities",
-                "Pure fanaticism",
-                "Extremist ideology",
-                "Demand for authoritarian order",
-                "Incurable fanatic"
-              ]
-            },
-            "hate_speech": {
-              "description": "Expressions that incite hate against specific groups.",
-              "examples": [
-                "go hang yourself",
-                "You are a disgusting bastard",
-                "Hate speech against Muslims",
-                "I hate you all",
-                "Your existence is unbearable",
-                "Outrageous hate",
-                "You are all equally worthless",
-                "Insults against immigrants",
-                "Abhorrent statements",
-                "Hate against all dissenters"
-              ]
-            },
-            "advert_extremist_parties": {
-              "description": "Advertising or propaganda for extremist political parties.",
-              "examples": [
-                "Support the new people's party – pure and strong!",
-                "Our party brings true freedom – join us!",
-                "Extreme, patriotic, alternative – vote for the Volksfront!",
-                "For a strong people – with our party at the top!",
-                "The alternative for the people – your vote counts!",
-                "Enough with the establishment – our party rocks!",
-                "Our movement stands for real values – vote now!",
-                "The people's party: For a free, strong country!",
-                "Resistance against the system – your vote for change!",
-                "Together for a new era – vote for the Volksfront!"
-              ]
-            }
-          }
-        }
-      },
-      "response_format": "CATEGORY: ...\nREASON: ..."
+      }
     },
     "actions": {
       "warning": {
         "metadata": {
-          "max_length": 200,
-          "emoji_allowed": false,
-          "line_format": "single-line"
+          "max_length": 200
         },
         "templates": {
-          "instructions": "You are an AI administrator in 'Hell Let Loose'.",
-          "template": "This is about:\n{reason}\n\nRegarding this player:\n{author_name}\n\nYour task:\n- Be serious!\n- Warn the player with a brief justification (max. {max_length} characters).\n- Only one warning is allowed.\n- No emojis.\n- Use ' instead of \" and write everything in one line."
+          "template": "Attention {author_name}, this is a warning. Reason: {reason}"
         }
       },
       "tempban": {
         "metadata": {
-          "max_length": 200,
-          "emoji_allowed": false,
-          "line_format": "single-line"
+          "max_length": 200
         },
         "templates": {
-          "template": "This is about:\n{reason}\n\nRegarding this player:\n{author_name}\n\nYour task:\n- Be serious!\n- State the reason for a 24-hour ban (max. {max_length} characters).\n- No emojis.\n- Use ' instead of \" and write everything in one line."
+          "template": "You receive a 24h ban, {author_name}. Reason: {reason}"
         }
       },
       "perma": {
         "metadata": {
-          "max_length": 200,
-          "emoji_allowed": false,
-          "line_format": "single-line"
+          "max_length": 200
         },
         "templates": {
-          "template": "This is about:\n{reason}\n\nRegarding this player:\n{author_name}\n\nYour task:\n- Be serious!\n- State the reason for a permanent ban (max. {max_length} characters).\n- No emojis.\n- Use ' instead of \" and write everything in one line."
+          "template": "You are permanently banned, {author_name}. Reason: {reason}"
         }
       },
       "kick": {
         "metadata": {
-          "max_length": 200,
-          "emoji_allowed": false,
-          "line_format": "single-line"
+          "max_length": 200
         },
         "templates": {
-          "template": "This is about:\n{reason}\n\nRegarding this player:\n{author_name}\n\nYour task:\n- Be serious!\n- State the reason for a server kick (max. {max_length} characters).\n- No emojis.\n- Use ' instead of \" and write everything in one line."
+          "template": "You are kicked from the server, {author_name}. Reason: {reason}"
         }
       },
       "positive": {
         "metadata": {
-          "tone": "humorous",
-          "style": "witty"
+          "max_length": 150
         },
         "templates": {
-          "template": "Respond directly and respectfully to '{reason}' from {author_name}. Brief and precise (max 150 characters). You are an administrator in Hell Let Loose. Be humorous if the situation allows. Ask a question."
+          "template": "Thank you, {author_name}, for your message: {reason}"
         }
       },
       "player_not_found": {
         "metadata": {
-          "max_length": 200,
-          "emoji_allowed": false,
-          "line_format": "single-line"
+          "max_length": 150
         },
         "templates": {
-          "template": "Respond directly and respectfully to '{reason}' from {author_name}. Brief and precise (max 150 characters). You are an administrator in Hell Let Loose. Be humorous if the situation allows. Ask a question."
+          "template": "Sorry, {author_name}, we couldn't find a matching player."
         }
       }
     }

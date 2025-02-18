@@ -23,8 +23,6 @@ class PromptManager:
                 return {}
 
     def get_nested_prompt(self, key_path: str, lang: str) -> str:
-        """Returns the value from a nested key path in the JSON structure.
-        Example: key_path = "prompts.classification.report.templates.instructions" """
         keys = key_path.split('.')
         data = self.load_prompts(lang)
         try:
