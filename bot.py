@@ -155,10 +155,9 @@ class MyBot(commands.Bot):
     async def on_message(self, message: discord.Message):
         """
         Haupt-Logik für eingehende Nachrichten:
-        - Ohne !admin => KI-Analyse
-        - Mit !admin => Erst Squad/Unit-Suche (fuzzy gegen UNIT_KEYWORDS),
-        dann ggf. Player-Suche,
-        sonst Fallback => KI.
+        1) Prüfe Squad/Unit-Fuzzy-Matching => find_and_respond_unit
+        2) Wenn nicht gefunden => Prüfe Spieler-Fuzzy-Matching => find_and_respond_player
+        3) Wenn nichts gefunden => KI-Analyse (classify_comprehensive)
         """
         if message.author == self.user:
             return
@@ -172,7 +171,8 @@ class MyBot(commands.Bot):
             set_author_name(message.author.display_name)
             logging.info("on_message: set_author_name to '%s'", message.author.display_name)
 
-        # Embed => Versuche Server/Team
+        # Falls Embed => Versuche Server/Team aus dem Embed zu extrahieren
+        team = ""
         if message.embeds:
             embed = message.embeds[0]
             # Footer => server name => base_url
@@ -183,7 +183,8 @@ class MyBot(commands.Bot):
                     if base_url:
                         self.api_client.base_url = base_url
                         logging.info("on_message: Setting self.api_client.base_url to %s", base_url)
-            # author => team
+
+            # author => team (z.B. "PlayerName [Axis]" o. ä.)
             if embed.author and embed.author.name:
                 pattern = r"(.+?)\s+\[(Axis|Allies)\](?:\[\w+\])?"
                 match = re.match(pattern, embed.author.name)
@@ -195,28 +196,21 @@ class MyBot(commands.Bot):
                 else:
                     set_author_name(message.author.display_name)
 
+        # Text extrahieren (ohne !admin-Check)
         eff_text = self.get_effective_text(message).strip().lower()
-        if not eff_text.startswith("!admin"):
-            logging.info("on_message: No '!admin' => analyze_with_ai")
+        logging.info("on_message: eff_text=%r", eff_text)
+
+        # Zerlege den Text in Tokens
+        splitted = eff_text.split(None, 2)  # bis zu 3 Tokens => splitted[0], splitted[1], splitted[2]
+        if not splitted:
+            # Falls empty => direct analyze_with_ai
             await self.analyze_with_ai(message, eff_text)
             return
 
-        splitted = eff_text.split(None, 2)  # ["!admin", "<word>", "rest..." ]
-        if len(splitted) < 2:
-            # Nur "!admin"
-            logging.info("on_message: only '!admin' => fallback => KI")
-            await self.analyze_with_ai(message, eff_text)
-            return
+        possible_unit_or_player = splitted[0]
+        reason_part = splitted[1] if len(splitted) > 1 else ""
 
-        possible_unit_or_player = splitted[1]
-        reason_part = splitted[2] if len(splitted) > 2 else ""
-        logging.info("on_message: splitted => %s => possible_unit_or_player=%r, reason_part=%r",
-                    splitted, possible_unit_or_player, reason_part)
-
-        # 1) Fuzzy Unit-Check (falls wir 'team' haben)
-        #    Wir versuchen also, ob <word> sich fuzzy einem Eintrag in UNIT_KEYWORDS
-        #    zuordnen lässt. Falls Score <= threshold und wir 'team' haben,
-        #    ruft es find_and_respond_unit auf. Sonst geht es weiter zu find_and_respond_player.
+        # 1) Squad/Unit-Fuzzy-Check
         def fuzzy_find_unit_keyword(input_word: str, threshold=2.2):
             best_score = float('inf')
             best_kw = None
@@ -230,23 +224,23 @@ class MyBot(commands.Bot):
         best_kw, best_kw_score, kw_threshold = fuzzy_find_unit_keyword(possible_unit_or_player)
         logging.info("on_message: fuzzy-check on unit => best_kw=%r, best_kw_score=%.3f", best_kw, best_kw_score)
 
-        if best_kw_score <= kw_threshold and 'team' in locals() and team:
+        # Falls der Score gut genug ist (<= kw_threshold) und wir haben 'team' (z.B. "Axis"/"Allies")
+        if best_kw_score <= kw_threshold and team:
             logging.info("on_message: found fuzzy match => calling find_and_respond_unit (team=%s, best_kw=%s)",
                         team, best_kw)
-            # Falls find_and_respond_unit erfolgreich einen Spieler findet => fertig
-            # Falls nicht => es ruft player_not_found. Danach brechen wir ab.
             await self.find_and_respond_unit(team, best_kw, ["officer", "spotter", "tankcommander", "armycommander"], message)
             return
 
-        # 2) Falls Unit nicht passt (Score zu hoch, oder kein Team da),
-        #    dann versuche find_and_respond_player:
-        logging.info("on_message: => find_and_respond_player (since fuzzy unit didn't match or no team)")
-        found_player = await self.find_and_respond_player(message, splitted[1:], reason_part)
+        # 2) Player-Fuzzy-Matching (split_args => splitted, reason_part)
+        #    Hier übergeben wir splitted (oder splitted[1:]) je nachdem, wie du es brauchst.
+        logging.info("on_message: => trying find_and_respond_player")
+        found_player = await self.find_and_respond_player(message, splitted, reason_part)
         if found_player:
+            # Falls wir einen Spieler gefunden haben => fertig
             return
 
-        # 3) Nichts gefunden => fallback => KI
-        logging.info("on_message: no match => fallback => analyze_with_ai")
+        # 3) Weder Unit noch Player => fallback => KI
+        logging.info("on_message: no unit/player match => fallback => analyze_with_ai")
         await self.analyze_with_ai(message, eff_text)
 
     async def analyze_with_ai(self, message: discord.Message, raw_text: str = ""):
