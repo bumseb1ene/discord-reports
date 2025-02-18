@@ -10,7 +10,9 @@
           "max_length": 186
         },
         "templates": {
-          "instructions": "Bitte klassifiziere den folgenden Text in GENAU vier Zeilen:\nCATEGORY: <[legit, insult, temp_ban, perma, unknown]>\nSEVERITY: <[warning, temp_ban, perma, none]>\nREASON: <kurze Begründung>\nEXPLANATION: <kurze Zusammenfassung>\n\nSchreibe deine Antwort vollständig auf Deutsch."
+          "context": "Du bist ein Klassifikationsassistent. Antworte immer auf Deutsch.",
+          "rules": "Definition der Kategorien:\n- legit: Normale Hinweise, Fragen, harmlose Aussagen ohne offensichtliche Beleidigung.\n  * Spieler dürfen ihren Unmut, ihre Kritik oder Unzufriedenheit über das Spiel, den Server oder Admins äußern, solange keine persönliche Beleidigung oder Diffamierung vorliegt.\n  * Spieler dürfen auf rassistische/extremistische Aussagen oder Spielernamen hinweisen oder sie zitieren, ohne dafür bestraft zu werden (solange sie nicht selbst diese Inhalte vertreten).\n  * Aussagen gegenüber Admins sind legit, sofern sie keine Beleidigung oder Bedrohung enthalten.\n\n- insult: Mäßige Beleidigung oder Beschimpfung (z.B. 'Idiot'), jedoch nicht extrem.\n  * Mögliche Severity = warning (z.B. leichte Schimpfworte: 'Dummkopf') oder temp_ban (z.B. 'Du Vollidiot', wiederholtes Beleidigen).\n\n- temp_ban: Sehr harte, aggressive Beleidigungen, Drohungen oder Rassismus \"light\" (z.B. 'Verpiss dich').\n\n- perma: Extremistische/rassistische/hassvolle Inhalte oder Aufforderungen, die Menschenverachtung ausdrücken (z.B. Nazi-Bezüge, 'Heil Hitler', 'judensau').\n\n- unknown: Falls du es nicht zuordnen kannst.\n\nDefinition Severity:\n- warning: Leichte Beleidigung (z.B. 'Dummkopf').\n- temp_ban: Massiv beleidigend ('Arschloch', 'fick dich'), drohend oder hasserfüllt (aber kein Extremismus).\n- perma: Rassismus, Extremismus, harte menschenverachtende Aussagen.\n- none: Falls legit.\n\nWichtig:\n- Eine reine Unmutsäußerung oder Kritik (z.B. 'Das Spiel ist schlecht', 'Ich finde das ungerecht') gilt als legit.\n- Das Melden oder Zitieren rassistischer/extremistischer Inhalte anderer ist legit, solange klar ist, dass der Spieler sie nicht selbst propagiert.",
+          "output_format": "Gib genau vier Zeilen aus:\nCATEGORY: <one of [legit, insult, temp_ban, perma, unknown]>\nSEVERITY: <one of [warning, temp_ban, perma, none]>\nREASON: <kurze Begründung>\nEXPLANATION: <kurze Zusammenfassung>\nKeine extra Zeilen!"
         }
       }
     },
@@ -52,7 +54,7 @@
           "max_length": 150
         },
         "templates": {
-          "template": "Antworte direkt und humorvoll auf '{reason}' von {author_name}. Kurz und präzise (max 100 Zeichen). Nur nach Squad/Spielernamen fragen, wenn Kontext fehlt."
+          "template": "Antworte direkt und gehe auf '{reason}' von {author_name} ein. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 150 Zeichen). Nur nach Squad/Spielernamen fragen, wenn Kontext fehlt. Gib dich nicht als KI zu erkennen."
         }
       },
       "player_not_found": {
