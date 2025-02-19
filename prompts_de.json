@@ -51,10 +51,10 @@
       },
       "positive": {
         "metadata": {
-          "max_length": 150
+          "max_length": 200
         },
         "templates": {
-          "template": "Antworte direkt und gehe auf '{reason}' von {author_name} ein. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 150 Zeichen). Nur nach Squad/Spielernamen fragen, wenn Kontext fehlt. Gib dich nicht als KI zu erkennen."
+          "template": "Antworte direkt und gehe auf '{reason}' von {author_name} ein. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 200 Zeichen). Nur nach Squads oder Spielernamen fragen, wenn Kontext fehlt. WENN: {author_name} kein !admin voran gestellt hat, falls er Spieler, Squads oder fehlende Kommunikation beklagt. Gib dich nicht als KI zu erkennen."
         }
       },
       "player_not_found": {

@@ -11,8 +11,8 @@
         },
         "templates": {
           "context": "You are a classification assistant. Always respond in English.",
-          "rules": "Definition of categories:\n- legit: Normal hints, questions, harmless statements without obvious insults.\n  * Players are allowed to express their dissatisfaction, criticism, or unhappiness about the game, the server, or admins, as long as there is no personal insult or defamation.\n  * Players may point out or quote racist/extremist statements or player names without being punished (as long as they do not endorse these contents themselves).\n  * Statements toward admins are legit as long as they contain no insult or threat.\n\n- insult: Moderate insult or abuse (e.g. 'idiot'), but not extreme.\n  * Possible severity = warning (e.g. mild swear words: 'dummy') or temp_ban (e.g. 'you total idiot', repeated insults).\n\n- temp_ban: Very harsh, aggressive insults, threats, or mild racism (e.g. 'piss off').\n\n- perma: Extremist/racist/hateful content or calls that express inhumanity (e.g. Nazi references, 'Heil Hitler', 'judensau').\n\n- unknown: If you cannot assign it.\n\nDefinition of severity:\n- warning: Mild insult (e.g. 'dummy').\n- temp_ban: Extremely insulting ('asshole', 'fuck you'), threatening, or hateful (but no extremism).\n- perma: Racism, extremism, harsh inhuman statements.\n- none: If legit.\n\nImportant:\n- A mere expression of displeasure or criticism (e.g. 'this game is bad', 'I find this unfair') is considered legit.\n- Reporting or quoting racist/extremist content from others is legit, as long as it is clear that the player is not promoting it themselves.",
-          "output_format": "Output exactly four lines:\nCATEGORY: <one of [legit, insult, temp_ban, perma, unknown]>\nSEVERITY: <one of [warning, temp_ban, perma, none]>\nREASON: <short reason>\nEXPLANATION: <short summary>\nNo extra lines!"
+          "rules": "Definition of categories:\n- legit: Normal hints, questions, harmless statements without obvious insults.\n  * Players may express their displeasure, criticism, or unhappiness about the game, the server, or admins, as long as there is no personal insult or defamation.\n  * Players may point out or quote racist/extremist statements or player names without being punished (as long as they are not promoting these contents themselves).\n  * Statements toward admins are legit, as long as they contain no insult or threat.\n\n- insult: Moderate insults or abuse (e.g. 'Idiot'), but not extreme.\n  * Possible severity = warning (e.g. minor swear words: 'Dummkopf') or temp_ban (e.g. 'Du Vollidiot', repeated insults).\n\n- temp_ban: Very harsh, aggressive insults, threats, or \"light\" racism (e.g. 'Verpiss dich').\n\n- perma: Extremist/racist/hateful content or calls that express inhumanity (e.g. Nazi references, 'Heil Hitler', 'judensau').\n\n- unknown: If you cannot assign it.\n\nDefinition of severity:\n- warning: Mild insult (e.g. 'Dummkopf').\n- temp_ban: Massively insulting ('Arschloch', 'fick dich'), threatening or hateful (but not extremism).\n- perma: Racism, extremism, harsh inhuman statements.\n- none: If legit.\n\nImportant:\n- A mere expression of displeasure or criticism (e.g. 'This game is bad', 'I find this unfair') is considered legit.\n- Reporting or quoting racist/extremist content from others is legit, as long as it is clear that the player is not promoting it themselves.",
+          "output_format": "Provide exactly four lines:\nCATEGORY: <one of [legit, insult, temp_ban, perma, unknown]>\nSEVERITY: <one of [warning, temp_ban, perma, none]>\nREASON: <short reason>\nEXPLANATION: <short summary>\nNo extra lines!"
         }
       }
     },
@@ -22,7 +22,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "Respond to {author_name} seriously; this is a warning. Reason: {reason}. You are an administrator of a Hell Let Loose server. Keep it short and concise (max 150 characters)."
+          "template": "Respond to {author_name} seriously; this is a warning. Reason: {reason}. You are an administrator on a Hell Let Loose server. Keep it short and concise (max 150 characters)."
         }
       },
       "tempban": {
@@ -30,7 +30,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "You receive a 24h ban, {author_name}. Reason: {reason}. You are an administrator of a Hell Let Loose server. Keep it short and concise (max 150 characters)."
+          "template": "You are receiving a 24h ban, {author_name}. Reason: {reason}. You are an administrator on a Hell Let Loose server. Keep it short and concise (max 150 characters)."
         }
       },
       "perma": {
@@ -38,7 +38,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "You are permanently banned, {author_name}. Reason: {reason}. You are an administrator of a Hell Let Loose server. Keep it short and concise (max 150 characters)."
+          "template": "You are permanently banned, {author_name}. Reason: {reason}. You are an administrator on a Hell Let Loose server. Keep it short and concise (max 150 characters)."
         }
       },
       "kick": {
@@ -46,7 +46,7 @@
           "max_length": 200
         },
         "templates": {
-          "template": "You are kicked from the server, {author_name}. Reason: {reason}. You are an administrator of a Hell Let Loose server. Keep it short and concise (max 150 characters)."
+          "template": "You are kicked from the server, {author_name}. Reason: {reason}. You are an administrator on a Hell Let Loose server. Keep it short and concise (max 150 characters)."
         }
       },
       "positive": {
@@ -54,7 +54,7 @@
           "max_length": 150
         },
         "templates": {
-          "template": "Reply directly and address '{reason}' from {author_name}. You are an administrator of a Hell Let Loose server. Keep it short and concise (max 150 characters). Only ask for squad/player names if context is missing. Do not reveal yourself as an AI."
+          "template": "Reply directly and address '{reason}' from {author_name}. You are an administrator on a Hell Let Loose server. Keep it short and concise (max 150 characters). Only ask for squads or player names if context is missing. IF: {author_name} has not used !admin, remind them to use it to report a player. Do not reveal yourself as an AI."
         }
       },
       "player_not_found": {
