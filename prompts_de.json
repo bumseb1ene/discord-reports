@@ -62,7 +62,7 @@
           "max_length": 150
         },
         "templates": {
-          "template": "Entschuldigung, {author_name}, wir konnten keinen passenden Spieler finden."
+          "template": "Antworte direkt und geh auf den Author ein. Du bist Administrator eines Hell let Loose Servers. Kurz und präzise (max 200 Zeichen). Der Squad- oder Spielername konnte nicht gefunden werden. Entweder der Spieler hat den Server schon verlassen oder das Squad wurde geschlossen."
         }
       }
     }

@@ -210,26 +210,46 @@ class MyBot(commands.Bot):
         possible_unit_or_player = splitted[0]
         reason_part = splitted[1] if len(splitted) > 1 else ""
 
-        # 1) Squad/Unit-Fuzzy-Check
-        def fuzzy_find_unit_keyword(input_word: str, threshold=2.2):
-            best_score = float('inf')
-            best_kw = None
+        # 1) Squad/Unit-Fuzzy-Check mit N-Grams über den gesamten eff_text
+        tokens = eff_text.strip().split()
+        max_ngram_length = 3
+        ngrams = []
+
+        for start_i in range(len(tokens)):
+            for length in range(1, max_ngram_length + 1):
+                end_i = start_i + length
+                if end_i <= len(tokens):
+                    candidate = " ".join(tokens[start_i:end_i])
+                    ngrams.append(candidate)
+
+        best_kw = None
+        best_candidate = None
+        best_kw_score = float('inf')
+        kw_threshold = 2.2  # oder beliebig anpassen
+
+        for cand in ngrams:
             for kw in UNIT_KEYWORDS:
-                sc = combined_fuzzy_score(input_word, kw.lower())
-                if sc < best_score:
-                    best_score = sc
+                sc = combined_fuzzy_score(cand.lower(), kw.lower())
+                if sc < best_kw_score:
+                    best_kw_score = sc
+                    best_candidate = cand
                     best_kw = kw
-            return best_kw, best_score, threshold
 
-        best_kw, best_kw_score, kw_threshold = fuzzy_find_unit_keyword(possible_unit_or_player)
-        logging.info("on_message: fuzzy-check on unit => best_kw=%r, best_kw_score=%.3f", best_kw, best_kw_score)
+        logging.info("on_message: fuzzy-check ngrams => best_kw=%r, best_kw_score=%.3f, best_candidate=%r",
+                    best_kw, best_kw_score, best_candidate)
 
-        # Falls der Score gut genug ist (<= kw_threshold) und wir haben 'team' (z.B. "Axis"/"Allies")
-        if best_kw_score <= kw_threshold and team:
+        # Falls wir ein Squad-Keyword gefunden haben und das Team (Axis/Allies) bekannt ist:
+        if best_kw and best_kw_score <= kw_threshold and team:
             logging.info("on_message: found fuzzy match => calling find_and_respond_unit (team=%s, best_kw=%s)",
                         team, best_kw)
-            await self.find_and_respond_unit(team, best_kw, ["officer", "spotter", "tankcommander", "armycommander"], message)
+            await self.find_and_respond_unit(
+                team,
+                best_kw,
+                ["officer", "spotter", "tankcommander", "armycommander"],
+                message
+            )
             return
+
 
         # 2) Player-Fuzzy-Matching (split_args => splitted, reason_part)
         #    Hier übergeben wir splitted (oder splitted[1:]) je nachdem, wie du es brauchst.
